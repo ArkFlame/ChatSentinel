@@ -1,7 +1,7 @@
 name: ChatSentinel
 description: Advanced chat management plugin
 author: 2LS
-version: 2.0.0
+version: 2.0.1
 url: https://builtbybit.com/resources/23698/
 main: dev._2lstudios.chatsentinel.bukkit.ChatSentinel
 depend:
