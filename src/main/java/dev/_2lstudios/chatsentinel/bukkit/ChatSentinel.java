@@ -3,6 +3,11 @@ package dev._2lstudios.chatsentinel.bukkit;
 import dev._2lstudios.chatsentinel.bukkit.commands.ChatSentinelCommand;
 import dev._2lstudios.chatsentinel.bukkit.config.BukkitMutableModuleConfigStore;
 import dev._2lstudios.chatsentinel.bukkit.filter.BukkitUserFilterWriter;
+import com.github.retrooper.packetevents.PacketEvents;
+import com.github.retrooper.packetevents.event.PacketListenerCommon;
+import com.github.retrooper.packetevents.event.PacketListenerPriority;
+import dev._2lstudios.chatsentinel.bukkit.chat.BukkitLiveDeletePacketListener;
+import dev._2lstudios.chatsentinel.bukkit.chat.BukkitOutboundChatDecorationTracker;
 import dev._2lstudios.chatsentinel.bukkit.listeners.AsyncPlayerChatListener;
 import dev._2lstudios.chatsentinel.bukkit.listeners.PlayerJoinListener;
 import dev._2lstudios.chatsentinel.bukkit.listeners.PlayerMoveListener;
@@ -55,6 +60,8 @@ public class ChatSentinel extends JavaPlugin {
     private SocialSpyMenu socialSpyMenu;
     private AlertBus alertBus = new LocalAlertBus();
     private String redisInstanceId;
+    private BukkitOutboundChatDecorationTracker outboundChatDecorationTracker;
+    private PacketListenerCommon liveDeletePacketListener;
 
     public static ChatSentinel getInstance() {
         return instance;
@@ -88,7 +95,18 @@ public class ChatSentinel extends JavaPlugin {
         chatPlatform.refreshOnlinePlayers(chatPlayerManager, chatNotificationManager, generalModule);
 
         final PluginManager pluginManager = server.getPluginManager();
-        pluginManager.registerEvents(new AsyncPlayerChatListener(this, chatPlayerManager), this);
+        if (outboundChatDecorationTracker == null) {
+            outboundChatDecorationTracker = new BukkitOutboundChatDecorationTracker();
+        }
+        if (liveDeletePacketListener == null) {
+            liveDeletePacketListener = PacketEvents.getAPI().getEventManager().registerListener(
+                    new BukkitLiveDeletePacketListener(this, outboundChatDecorationTracker), PacketListenerPriority.HIGHEST);
+            if (moduleManager.getChatSnapshotModule().isEnabled()
+                    && moduleManager.getChatSnapshotModule().isLiveDeleteClickEnabled()) {
+                getLogger().info("Live-delete chat decoration enabled; PacketEvents fallback listener registered at HIGHEST.");
+            }
+        }
+        pluginManager.registerEvents(new AsyncPlayerChatListener(this, chatPlayerManager, outboundChatDecorationTracker), this);
         pluginManager.registerEvents(new PlayerJoinListener(generalModule, chatPlayerManager, chatNotificationManager), this);
         pluginManager.registerEvents(new PlayerMoveListener(chatPlayerManager, moduleManager.getNoMoveChatModule()), this);
         pluginManager.registerEvents(new PlayerTeleportListener(chatPlayerManager), this);
@@ -114,6 +132,10 @@ public class ChatSentinel extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (liveDeletePacketListener != null) {
+            PacketEvents.getAPI().getEventManager().unregisterListener(liveDeletePacketListener);
+            liveDeletePacketListener = null;
+        }
         alertBus.close();
         FoliaAPI.cancelAllTasks(this);
         FoliaAPI.reset();

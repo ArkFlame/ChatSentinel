@@ -80,6 +80,19 @@ public final class ChatSnapshotModule {
         return Optional.empty();
     }
 
+    public synchronized boolean addRecipient(final String id, final UUID recipientId) {
+        if (id == null || id.trim().isEmpty() || recipientId == null) {
+            return false;
+        }
+        for (final Entry entry : entries) {
+            if (entry.getId().equalsIgnoreCase(id)) {
+                entry.addRecipient(recipientId);
+                return true;
+            }
+        }
+        return false;
+    }
+
     public synchronized List<Entry> getRecentEntries() {
         return Collections.unmodifiableList(new ArrayList<Entry>(entries));
     }
@@ -175,7 +188,7 @@ public final class ChatSnapshotModule {
         if (recipientIds == null || recipientIds.isEmpty()) {
             return Collections.emptySet();
         }
-        return Collections.unmodifiableSet(new HashSet<UUID>(recipientIds));
+        return new HashSet<UUID>(recipientIds);
     }
 
     private void trimHistory() {
@@ -210,7 +223,7 @@ public final class ChatSnapshotModule {
             this.senderName = senderName;
             this.message = message;
             this.renderedLine = renderedLine;
-            this.recipientIds = recipientIds;
+            this.recipientIds = new HashSet<UUID>(recipientIds);
         }
 
         public String getId() { return id; }
@@ -225,7 +238,7 @@ public final class ChatSnapshotModule {
 
         public String getRenderedLine() { return renderedLine; }
 
-        public Set<UUID> getRecipientIds() { return recipientIds; }
+        public Set<UUID> getRecipientIds() { return Collections.unmodifiableSet(new HashSet<UUID>(recipientIds)); }
 
         public boolean isDeleted() { return deleted; }
 
@@ -239,6 +252,12 @@ public final class ChatSnapshotModule {
 
         private void markDeleted() {
             this.deleted = true;
+        }
+
+        private void addRecipient(final UUID recipientId) {
+            if (recipientId != null) {
+                recipientIds.add(recipientId);
+            }
         }
     }
 }

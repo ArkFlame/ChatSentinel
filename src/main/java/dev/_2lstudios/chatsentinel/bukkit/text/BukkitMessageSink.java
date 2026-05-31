@@ -42,7 +42,16 @@ public final class BukkitMessageSink implements MessageSink<Player> {
 
 	public void sendClickablePrefixMessage(final Player player, final String prefix, final String hover,
 			final String command, final String body) {
-		if (player == null || body == null || body.isEmpty()) {
+		if (body == null || body.isEmpty()) {
+			return;
+		}
+		sendClickablePrefixMessage(player, prefix, hover, command,
+				TextComponent.fromLegacyText(LegacyText.toSection(body)));
+	}
+
+	public void sendClickablePrefixMessage(final Player player, final String prefix, final String hover,
+			final String command, final BaseComponent[] bodyComponents) {
+		if (player == null || bodyComponents == null || bodyComponents.length == 0) {
 			return;
 		}
 		final String safePrefix = prefix == null ? "" : prefix;
@@ -55,13 +64,18 @@ public final class BukkitMessageSink implements MessageSink<Player> {
 				component.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
 						TextComponent.fromLegacyText(LegacyText.toSection(safeHover))));
 			}
-			final BaseComponent[] bodyComponents = TextComponent.fromLegacyText(LegacyText.toSection(body));
 			final BaseComponent[] all = new BaseComponent[prefixComponents.length + bodyComponents.length];
 			System.arraycopy(prefixComponents, 0, all, 0, prefixComponents.length);
 			System.arraycopy(bodyComponents, 0, all, prefixComponents.length, bodyComponents.length);
 			player.spigot().sendMessage(all);
 		} catch (NoClassDefFoundError | NoSuchMethodError | UnsupportedOperationException exception) {
-			sendMessage(player, safePrefix + body);
+			final StringBuilder fallback = new StringBuilder(LegacyText.toSection(safePrefix));
+			for (final BaseComponent component : bodyComponents) {
+				if (component != null) {
+					fallback.append(component.toLegacyText());
+				}
+			}
+			sendMessage(player, fallback.toString());
 		}
 	}
 
