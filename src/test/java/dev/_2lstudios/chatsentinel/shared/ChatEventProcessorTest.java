@@ -306,6 +306,36 @@ public class ChatEventProcessorTest {
         assertEquals("Hello everyone", result.getMessage());
     }
 
+    @Test
+    public void process_doesNotThrowSpyFormatting_whenPlaceholderReplacementIsNull() {
+        TestModuleManager modules = modules();
+        modules.getGeneralModule().loadData(false, false, false, Collections.<String>emptyList(), "",
+                Collections.<String>emptyList());
+        modules.getSpyModule().loadData(true, "spy.permission", "&e%server_name%:%message%");
+        modules.getBlacklistModule().loadData(true, "Blacklist", false, false, "", 0, "", false,
+                new String[0], new String[] { "bad" }, true);
+        final FakeUser sender = new FakeUser(UUID.randomUUID(), "Steve") {
+            @Override
+            public String getServerName() {
+                return null;
+            }
+        };
+        final FakeUser watcher = new FakeUser(UUID.randomUUID(), "Admin") {
+            @Override
+            public boolean hasPermission(final String permission) {
+                return "spy.permission".equals(permission);
+            }
+        };
+        final ChatPlayerManager players = new ChatPlayerManager();
+        players.getPlayer(watcher).setSpy(true);
+        final ChatEventProcessor processor = processor(modules,
+                new FakePlatform("Bukkit", java.util.Arrays.<ChatUser>asList(sender, watcher)), players);
+
+        final ProcessedChatEvent result = processor.process(sender, "bad", true);
+
+        assertTrue(result.isCancelled());
+    }
+
     private static java.util.Map<String, String> createCorrectionReplacements() {
         java.util.Map<String, String> replacements = new java.util.HashMap<String, String>();
         replacements.put("wath", "what");

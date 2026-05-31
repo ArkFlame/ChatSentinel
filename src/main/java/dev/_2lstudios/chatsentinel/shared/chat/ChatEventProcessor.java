@@ -355,8 +355,12 @@ public final class ChatEventProcessor {
 
     private String dispatchSpy(final ChatUser sender, final String[][] placeholders) {
         final SpyModule spyModule = moduleManager.getSpyModule();
+        if (!spyModule.isEnabled()) {
+            return null;
+        }
+
         final String spyMessage = spyModule.format(placeholders);
-        if (!spyModule.isEnabled() || spyMessage == null || spyMessage.isEmpty()) {
+        if (spyMessage == null || spyMessage.isEmpty()) {
             return spyMessage;
         }
         for (ChatPlayer candidate : chatPlayerManager.getAllPlayers()) {
