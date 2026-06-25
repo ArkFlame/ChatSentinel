@@ -61,7 +61,7 @@ public class ChatListener implements Listener {
 		// Apply modifiers to event
 		if (finalResult.isHide()) {
 			event.setCancelled(true);
-			chatUser.sendMessage(plugin.getModuleManager().getChatSnapshotModule().renderProxyLine(player.getName(), finalResult.getMessage()));
+			chatUser.sendMessage(finalResult.getMessage());
 		} else if (finalResult.isCancelled()) {
 			event.setCancelled(true);
 		} else {
@@ -74,9 +74,6 @@ public class ChatListener implements Listener {
 				chatPlayer.addLastCommand(System.currentTimeMillis());
 			} else {
 				chatPlayer.addLastMessage(finalResult.getMessage(), System.currentTimeMillis());
-				plugin.getModuleManager().getChatSnapshotModule().record(player.getUniqueId(), player.getName(),
-						finalResult.getMessage(), plugin.getModuleManager().getChatSnapshotModule()
-								.renderProxyLine(player.getName(), finalResult.getMessage()), java.util.Collections.<java.util.UUID>emptyList());
 			}
 		}
 	}

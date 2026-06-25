@@ -99,7 +99,7 @@ public class ChatSentinel {
 
         final CommandManager commandManager = server.getCommandManager();
         final CommandMeta commandMeta = commandManager.metaBuilder("chatsentinel")
-                .aliases("autocorrect", "correction", "servermute", "muteall", "muteserver", "socialspy", "sspy", "deletechat", "recentchats")
+                .aliases("autocorrect", "correction", "servermute", "muteall", "muteserver", "socialspy", "sspy")
                 .plugin(this)
                 .build();
         final SimpleCommand chatSentinelCommand = new ChatSentinelCommand(this);

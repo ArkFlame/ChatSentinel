@@ -149,8 +149,8 @@ public class ChatEventProcessorTest {
         TestModuleManager modules = modules();
         Map<String, Map<String, String>> locales = new HashMap<String, Map<String, String>>();
         Map<String, String> en = new HashMap<String, String>();
-        en.put("blocked_message", "Blocked word: %word%.");
-        en.put("blacklist_warn_message", "warning");
+        en.put("blocked_message", "fallback-blocked: %word%.");
+        en.put("blacklist_warn_message", "Blocked word: %word%.");
         en.put("filtered", "filtered");
         locales.put("en", en);
         modules.getMessagesModule().loadData("en", locales);
@@ -169,8 +169,8 @@ public class ChatEventProcessorTest {
         TestModuleManager modules = modules();
         Map<String, Map<String, String>> locales = new HashMap<String, Map<String, String>>();
         Map<String, String> en = new HashMap<String, String>();
-        en.put("blocked_message", "Blocked word: %word%.");
-        en.put("blacklist_warn_message", "warning");
+        en.put("blocked_message", "fallback-blocked: %word%.");
+        en.put("blacklist_warn_message", "Blocked word: %word%.");
         en.put("filtered", "filtered");
         locales.put("en", en);
         modules.getMessagesModule().loadData("en", locales);
@@ -222,28 +222,50 @@ public class ChatEventProcessorTest {
         assertFalse(floodModule.wasCalled());
     }
 
-    @Test
-    public void process_sendsOnlyCooldownWarning_whenSimilarityWouldAlsoCancel() {
+@Test
+    public void process_doesNotApplyCorrection_whenOriginalMessageWillBeBlocked() {
         TestModuleManager modules = modules();
         Map<String, Map<String, String>> locales = new HashMap<String, Map<String, String>>();
         Map<String, String> en = new HashMap<String, String>();
-        en.put("blocked_message", "blocked");
-        en.put("cooldown_warn_message", "cooldown");
-        en.put("similarity_warn_message", "similarity");
+        en.put("blocked_message", "blocked %word%");
+        en.put("blacklist_warn_message", "blocked %word%");
+        en.put("correction_warn_message", "corrected %original_message% -> %corrected_message%");
         en.put("filtered", "filtered");
         locales.put("en", en);
         modules.getMessagesModule().loadData("en", locales);
-        modules.getCooldownModule().loadData(true, 0, 0, 5000, 0);
-        modules.getSimilarityModule().loadData(true, "Similarity", 75.0D, 3, 4, true, true, true);
+        modules.getCorrectionModule().loadData(true, "Correction", true, true, true, true, 8, "",
+                createCorrectionReplacements(),
+                Collections.<String>emptyList(),
+                () -> Collections.<String>emptyList());
+        modules.getBlacklistModule().loadData(true, "Blacklist", false, false, "", 0, "", false,
+                new String[0], new String[] { "bad" }, true);
         FakeUser user = new FakeUser(UUID.randomUUID(), "Steve");
-        ChatPlayerManager players = new ChatPlayerManager();
-        ChatPlayer chatPlayer = players.getPlayer(user);
-        chatPlayer.addLastMessage("spam", System.currentTimeMillis() - 1L);
-        ChatEventProcessor processor = processor(modules, new FakePlatform("Bukkit", Collections.singletonList(user)), players);
+        ChatEventProcessor processor = processor(modules, new FakePlatform("Bukkit", Collections.singletonList(user)), new ChatPlayerManager());
 
-        processor.process(user, "spaaam", true);
+        processor.process(user, "bad wath", true);
 
-        assertEquals(Collections.singletonList("cooldown"), user.getMessages());
+        assertEquals(Collections.singletonList("blocked bad"), user.getMessages());
+    }
+
+    @Test
+    public void process_dispatchesAllPunishmentCommands_whenWarnLimitReached() {
+        TestModuleManager modules = modules();
+        Map<String, Map<String, String>> locales = new HashMap<String, Map<String, String>>();
+        Map<String, String> en = new HashMap<String, String>();
+        en.put("blocked_message", "blocked %word%");
+        en.put("blacklist_warn_message", "blocked %word%");
+        en.put("filtered", "filtered");
+        locales.put("en", en);
+        modules.getMessagesModule().loadData("en", locales);
+        modules.getBlacklistModule().loadData(true, "Blacklist", false, false, "", 1, "", false,
+                new String[] { "mute %player% %word%", "warn %player% %module%" }, new String[] { "bad" }, true);
+        FakeUser user = new FakeUser(UUID.randomUUID(), "Steve");
+        FakePlatform platform = new FakePlatform("Bukkit", Collections.singletonList(user));
+        ChatEventProcessor processor = processor(modules, platform, new ChatPlayerManager());
+
+        processor.process(user, "bad", true);
+
+        assertEquals(java.util.Arrays.asList("mute Steve bad", "warn Steve Blacklist"), platform.getCommands());
     }
 
     @Test
@@ -430,6 +452,7 @@ public class ChatEventProcessorTest {
     private static final class FakePlatform implements ChatPlatform {
         private final String name;
         private final List<ChatUser> users;
+        private final List<String> commands = new ArrayList<String>();
 
         private FakePlatform(String name, Collection<ChatUser> users) {
             this.name = name;
@@ -457,6 +480,11 @@ public class ChatEventProcessorTest {
 
         @Override
         public void dispatchConsoleCommand(String command) {
+            commands.add(command);
+        }
+
+        private List<String> getCommands() {
+            return commands;
         }
 
         @Override

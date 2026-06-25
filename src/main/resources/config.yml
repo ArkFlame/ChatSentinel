@@ -135,19 +135,9 @@ no-move-chat:
   min-distance-blocks: 5.0
   allow-teleport: true
 
-# Stores recent visible chat lines for smart clear/delete replay.
-# Bukkit uses event chat format when available. BungeeCord/Velocity use proxy-replay-format.
+# Chat clear rendering settings. ChatSentinel no longer stores message history or supports message deletion.
 chat-snapshot:
-  enabled: true
-  history-size: 50
   clear-lines: 128
-  proxy-replay-format: "&7[%player%] &f%message%"
-  live-delete-click:
-    enabled: true
-    permission: "chatsentinel.delete"
-    prefix: "&8[&cX&8] "
-    hover: "&eClick to delete this message."
-    command: "/deletechat %id%"
 
 general:
   # If enabled, other checks will ignore non-latin characters to improve detection.
@@ -349,6 +339,8 @@ blacklist:
 
   # You need a mute plugin for ChatSentinel to mute players. (Recommended: LiteBans/AdvancedBans)
   # Set to [] to disable this feature completely.
+  # Multiple commands are supported. Canonical form is punishments: [ ... ].
+  # Legacy single-command forms are also read: punishment: "cmd" and punishment.command: "cmd".
   punishments:
     - "mute -s %player% Offensive Language (%message%) 1d"
   
@@ -415,6 +407,8 @@ capitalization:
 
   # You need a mute plugin for ChatSentinel to mute players. (Recommended: LiteBans/AdvancedBans)
   # Set to [] to disable this feature completely.
+  # Multiple commands are supported. Canonical form is punishments: [ ... ].
+  # Legacy single-command forms are also read: punishment: "cmd" and punishment.command: "cmd".
   punishments: []
 
 # Checks if player is chatting too fast.
@@ -468,6 +462,8 @@ flood:
 
   # You need a mute plugin for ChatSentinel to mute players. (Recommended: LiteBans/AdvancedBans)
   # Set to [] to disable this feature completely.
+  # Multiple commands are supported. Canonical form is punishments: [ ... ].
+  # Legacy single-command forms are also read: punishment: "cmd" and punishment.command: "cmd".
   punishments: []
 
 # Checks if the player is using syntax.
@@ -498,6 +494,8 @@ syntax:
 
   # You need a mute plugin for ChatSentinel to mute players. (Recommended: LiteBans/AdvancedBans)
   # Set to [] to disable this feature completely.
+  # Multiple commands are supported. Canonical form is punishments: [ ... ].
+  # Legacy single-command forms are also read: punishment: "cmd" and punishment.command: "cmd".
   punishments: []
 
 # Discord webhook configuration.

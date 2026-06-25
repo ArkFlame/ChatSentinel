@@ -11,8 +11,6 @@ public final class CommandPermission {
     public static final String REGEX_ADD = "chatsentinel.regex.add";
     public static final String MUTE = "chatsentinel.mute";
     public static final String MUTE_BYPASS = "chatsentinel.mute.bypass";
-    public static final String DELETE = "chatsentinel.delete";
-    public static final String DELETE_LIST = "chatsentinel.delete";
     public static final String AUTOCORRECT = "chatsentinel.autocorrect";
     public static final String SELFTEST = "chatsentinel.admin";
     public static final String SOCIALSPY = "chatsentinel.socialspy";

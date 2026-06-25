@@ -77,9 +77,6 @@ public class ChatListener {
 			chatPlayer.addLastCommand(System.currentTimeMillis());
 		} else {
 			chatPlayer.addLastMessage(message, System.currentTimeMillis());
-			plugin.getModuleManager().getChatSnapshotModule().record(player.getUniqueId(), player.getUsername(),
-					message, plugin.getModuleManager().getChatSnapshotModule().renderProxyLine(player.getUsername(), message),
-					java.util.Collections.<java.util.UUID>emptyList());
 		}
 	}
 }

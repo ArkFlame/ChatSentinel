@@ -2,6 +2,7 @@ package dev._2lstudios.chatsentinel.bukkit.modules;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -108,7 +109,7 @@ public class BukkitModuleManager extends ModuleManager {
 				configYml.getInt(capitalizationPath + ".warn.max", -1),
 				configYml.getString(capitalizationPath + ".warn.notification", ""),
 				configYml.getBoolean(capitalizationPath + ".warn.webhook-notification", true),
-				configYml.getStringList(capitalizationPath + ".punishments").toArray(new String[0]),
+				readPunishments(configYml, capitalizationPath),
 				configYml.getBoolean(capitalizationPath + ".whitelist-player-names", true),
 				configYml.getStringList(capitalizationPath + ".whitelist").toArray(new String[0]),
 				() -> ChatSentinel.getInstance().getChatPlatform().getOnlinePlayerNamesSnapshot(),
@@ -128,7 +129,7 @@ public class BukkitModuleManager extends ModuleManager {
 				configYml.getInt("flood.warn.max"), configYml.getString("flood.pattern"),
 				configYml.getString("flood.warn.notification"),
 				configYml.getBoolean("flood.warn.webhook-notification"),
-				configYml.getStringList("flood.punishments").toArray(new String[0]));
+				readPunishments(configYml, "flood"));
 		getMessagesModule().loadData(messagesYml.getString("default"), locales);
 		getServerMuteModule().loadData(configYml.getBoolean("server-mute.enabled", true),
 				configYml.getBoolean("server-mute.muted", false),
@@ -137,15 +138,7 @@ public class BukkitModuleManager extends ModuleManager {
 				configYml.getString("no-move-chat.bypass-permission", ""),
 				configYml.getDouble("no-move-chat.min-distance-blocks", 5.0D),
 				configYml.getBoolean("no-move-chat.allow-teleport", true));
-		getChatSnapshotModule().loadData(configYml.getBoolean("chat-snapshot.enabled", true),
-				configYml.getInt("chat-snapshot.history-size", ChatSnapshotModule.DEFAULT_HISTORY_SIZE),
-				configYml.getInt("chat-snapshot.clear-lines", ChatSnapshotModule.DEFAULT_CLEAR_LINES),
-				configYml.getString("chat-snapshot.proxy-replay-format", ChatSnapshotModule.DEFAULT_PROXY_REPLAY_FORMAT),
-				configYml.getBoolean("chat-snapshot.live-delete-click.enabled", ChatSnapshotModule.DEFAULT_LIVE_DELETE_CLICK_ENABLED),
-				configYml.getString("chat-snapshot.live-delete-click.permission", ChatSnapshotModule.DEFAULT_LIVE_DELETE_PERMISSION),
-				configYml.getString("chat-snapshot.live-delete-click.prefix", ChatSnapshotModule.DEFAULT_LIVE_DELETE_PREFIX),
-				configYml.getString("chat-snapshot.live-delete-click.hover", ChatSnapshotModule.DEFAULT_LIVE_DELETE_HOVER),
-				configYml.getString("chat-snapshot.live-delete-click.command", ChatSnapshotModule.DEFAULT_LIVE_DELETE_COMMAND));
+		getChatSnapshotModule().loadData(configYml.getInt("chat-snapshot.clear-lines", ChatSnapshotModule.DEFAULT_CLEAR_LINES));
 		getGeneralModule().loadData(configYml.getBoolean("general.sanitize", true),
 				configYml.getBoolean("general.sanitize-names", true),
 				configYml.getBoolean("general.filter-other", false),
@@ -178,7 +171,7 @@ public class BukkitModuleManager extends ModuleManager {
 				configYml.getString("syntax.warn.notification"),
 				configYml.getBoolean("syntax.warn.webhook-notification"),
 				configYml.getStringList("syntax.whitelist").toArray(new String[0]),
-				configYml.getStringList("syntax.punishments").toArray(new String[0]));
+				readPunishments(configYml, "syntax"));
 		getDiscordWebhookModule().loadData(
 				configYml.getBoolean("discord-webhook.enabled"),
 				configYml.getString("discord-webhook.webhook-url"),
@@ -226,7 +219,7 @@ public class BukkitModuleManager extends ModuleManager {
 				configYml.getInt("blacklist.warn.max"),
 				configYml.getString("blacklist.warn.notification"),
 				configYml.getBoolean("blacklist.warn.webhook-notification"),
-				configYml.getStringList("blacklist.punishments").toArray(new String[0]),
+				readPunishments(configYml, "blacklist"),
 				configYml.getBoolean("blacklist.block_raw_message"));
 
 		Map<String, FilterModuleSettings> settingsByModuleId = new HashMap<String, FilterModuleSettings>();
@@ -247,9 +240,7 @@ public class BukkitModuleManager extends ModuleManager {
 		String customName = section.getString("custom-module-name", fallback.getCustomName());
 		String warnNotification = section.getString("warn.notification", fallback.getWarnNotification());
 		String censorshipReplacement = section.getString("censorship.replacement", fallback.getCensorshipReplacement());
-		String[] commands = section.contains("punishments")
-				? section.getStringList("punishments").toArray(new String[0])
-				: fallback.getCommands();
+		String[] commands = readModulePunishments(section, fallback.getCommands());
 		return FilterModuleSettings.defaultBlacklist(moduleId,
 				section.getBoolean("enabled", fallback.isEnabled()),
 				customName,
@@ -275,6 +266,52 @@ public class BukkitModuleManager extends ModuleManager {
 			}
 		}
 		return result;
+	}
+
+	private String[] readPunishments(final ConfigurationSection section, final String basePath) {
+		final List<String> values = new ArrayList<String>();
+		appendStringList(values, section, basePath + ".punishments");
+		appendStringList(values, section, basePath + ".punishment.commands");
+		appendString(values, section.getString(basePath + ".punishment.command", null));
+		appendStringOrList(values, section, basePath + ".punishment");
+		return values.toArray(new String[0]);
+	}
+
+	private String[] readPunishments(final ConfigurationSection section, final String basePath, final String[] fallback) {
+		final String[] values = readPunishments(section, basePath);
+		return values.length == 0 ? fallback.clone() : values;
+	}
+
+	private String[] readModulePunishments(final ConfigurationSection section, final String[] fallback) {
+		final List<String> values = new ArrayList<String>();
+		appendStringList(values, section, "punishments");
+		appendStringList(values, section, "punishment.commands");
+		appendString(values, section.getString("punishment.command", null));
+		appendStringOrList(values, section, "punishment");
+		return values.isEmpty() ? fallback.clone() : values.toArray(new String[0]);
+	}
+
+	private void appendStringOrList(final List<String> values, final ConfigurationSection section, final String path) {
+		if (section.isList(path)) {
+			appendStringList(values, section, path);
+		} else if (section.isString(path)) {
+			appendString(values, section.getString(path, null));
+		}
+	}
+
+	private void appendStringList(final List<String> values, final ConfigurationSection section, final String path) {
+		if (section == null) {
+			return;
+		}
+		for (final String value : section.getStringList(path)) {
+			appendString(values, value);
+		}
+	}
+
+	private void appendString(final List<String> values, final String value) {
+		if (value != null && !value.trim().isEmpty()) {
+			values.add(value);
+		}
 	}
 
 	private void loadSocialSpy(final Configuration configYml) {

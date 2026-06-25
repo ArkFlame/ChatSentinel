@@ -11,7 +11,6 @@ import dev._2lstudios.chatsentinel.shared.filter.UserRegexAddService;
 import dev._2lstudios.chatsentinel.shared.modules.MessagesModule;
 import dev._2lstudios.chatsentinel.shared.modules.ModerationModule;
 import dev._2lstudios.chatsentinel.shared.modules.ModuleManager;
-import dev._2lstudios.chatsentinel.shared.modules.ChatSnapshotModule;
 import dev._2lstudios.chatsentinel.shared.platform.ChatPlatform;
 import dev._2lstudios.chatsentinel.shared.platform.ChatUser;
 import dev._2lstudios.chatsentinel.shared.platform.CommandActor;
@@ -24,12 +23,11 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 import java.util.Set;
 
 public final class ChatSentinelCommandService {
     private static final List<String> SUBCOMMANDS = Arrays.asList(
-            "help", "reload", "status", "selftest", "clear", "notify", "spy", "delete",
+            "help", "reload", "status", "selftest", "clear", "notify", "spy",
             "module", "regex", "mutechat", "servermute", "muteall", "muteserver", "autocorrect", "correction", "socialspy", "sspy");
     private static final List<String> ON_OFF_TOGGLE_MODES = Arrays.asList("on", "off", "toggle");
     private static final List<String> SOCIALSPY_ARGUMENTS = Arrays.asList("status", "messages", "signs", "books", "anvils", "commands");
@@ -69,53 +67,7 @@ public final class ChatSentinelCommandService {
             handleSocialSpy(actor, args, actor.getLocale(), 0);
             return CommandResult.handled();
         }
-        if ("deletechat".equals(normalizedLabel)) {
-            handleDeleteChatAlias(actor, args, actor.getLocale());
-            return CommandResult.handled();
-        }
-        if ("recentchats".equals(normalizedLabel)) {
-            handleRecentChatsAlias(actor, args, actor.getLocale());
-            return CommandResult.handled();
-        }
         return execute(actor, args);
-    }
-
-    private void handleDeleteChatAlias(final CommandActor actor, final String[] args, final String lang) {
-        if (!hasPermission(actor, CommandPermission.DELETE)) {
-            actor.sendMessage(moduleManager.getMessagesModule().getNoPermission(lang));
-            return;
-        }
-        if (args.length != 1) {
-            actor.sendMessage(moduleManager.getMessagesModule().getDeleteChatUsage(lang));
-            return;
-        }
-        deleteSnapshotEntry(actor, args[0], lang);
-    }
-
-    private void handleRecentChatsAlias(final CommandActor actor, final String[] args, final String lang) {
-        if (!hasPermission(actor, CommandPermission.DELETE)) {
-            actor.sendMessage(moduleManager.getMessagesModule().getNoPermission(lang));
-            return;
-        }
-        if (args.length > 1) {
-            actor.sendMessage(moduleManager.getMessagesModule().getRecentChatsUsage(lang));
-            return;
-        }
-        final String[] synthetic = args.length == 0
-                ? new String[] { "delete", "list" }
-                : new String[] { "delete", "list", args[0] };
-        handleDeleteList(actor, synthetic, lang);
-    }
-
-    private void deleteSnapshotEntry(final CommandActor actor, final String id, final String lang) {
-        final ChatSnapshotModule snapshotModule = moduleManager.getChatSnapshotModule();
-        Optional<ChatSnapshotModule.Entry> deleted = snapshotModule.markDeletedEntry(id);
-        if (!deleted.isPresent()) {
-            actor.sendMessage(moduleManager.getMessagesModule().getDeleteUnknown(placeholders(actor.getName(), "", "0", "0", id), lang));
-            return;
-        }
-        platform.replayChatSnapshot(snapshotModule);
-        actor.sendMessage(moduleManager.getMessagesModule().getDeleteDone(placeholders(actor.getName(), "", "0", "0", deleted.get().getId()), lang));
     }
 
     public CommandResult execute(final CommandActor actor, final String[] args) {
@@ -137,8 +89,6 @@ public final class ChatSentinelCommandService {
             handleNotify(actor, lang);
         } else if ("spy".equals(subcommand)) {
             handleSpy(actor, lang);
-        } else if ("delete".equals(subcommand)) {
-            handleDelete(actor, args, lang);
         } else if ("module".equals(subcommand)) {
             handleModule(actor, args, lang);
         } else if ("regex".equals(subcommand)) {
@@ -221,7 +171,6 @@ public final class ChatSentinelCommandService {
         sendHelpLine(actor, CommandPermission.CLEAR, "&e/chatsentinel clear [reason] &7- &bClears visible chat for non-bypass players.");
         sendHelpLine(actor, CommandPermission.NOTIFY, "&e/chatsentinel notify &7- &bToggles moderation notifications.");
         sendHelpLine(actor, moduleManager.getSpyModule().getPermission(), "&e/chatsentinel spy &7- &bToggles spy alerts.");
-        sendHelpLine(actor, CommandPermission.DELETE, "&e/chatsentinel delete <id>|list [limit] &7- &bDeletes/replays recent chat snapshot entries.");
         sendHelpLine(actor, CommandPermission.MODULE, "&e/chatsentinel module list|enable|disable|toggle <moduleId> &7- &bManages modules live.");
         sendHelpLine(actor, CommandPermission.REGEX_ADD, "&e/chatsentinel regex add <moduleId> common|raw <text|regex> &7- &bAdds user blacklist regex.");
         sendHelpLine(actor, CommandPermission.MUTE, "&e/servermute [on|off|toggle] [reason] &7- &bMutes or unmutes server chat.");
@@ -338,48 +287,6 @@ public final class ChatSentinelCommandService {
         final ChatPlayer chatPlayer = chatPlayerManager.getPlayer(user);
         chatPlayer.setSpy(!chatPlayer.isSpy());
         actor.sendMessage("Spy " + (chatPlayer.isSpy() ? "enabled" : "disabled") + ".");
-    }
-
-    private void handleDelete(final CommandActor actor, final String[] args, final String lang) {
-        if (!hasPermission(actor, CommandPermission.DELETE)) {
-            actor.sendMessage(moduleManager.getMessagesModule().getNoPermission(lang));
-            return;
-        }
-        if (args.length >= 2 && "list".equalsIgnoreCase(args[1])) {
-            handleDeleteList(actor, args, lang);
-            return;
-        }
-        if (args.length != 2) {
-            actor.sendMessage(moduleManager.getMessagesModule().getDeleteUsage(lang));
-            return;
-        }
-        deleteSnapshotEntry(actor, args[1], lang);
-    }
-
-    private void handleDeleteList(final CommandActor actor, final String[] args, final String lang) {
-        if (args.length > 3) {
-            actor.sendMessage(moduleManager.getMessagesModule().getDeleteUsage(lang));
-            return;
-        }
-        final int maxLimit = Math.max(1, moduleManager.getChatSnapshotModule().getHistorySize());
-        int limit = maxLimit;
-        if (args.length == 3) {
-            try {
-                limit = Math.max(1, Math.min(maxLimit, Integer.parseInt(args[2])));
-            } catch (NumberFormatException ignored) {
-                // Keep default history-size limit.
-            }
-        }
-        actor.sendMessage(moduleManager.getMessagesModule().getDeleteListHeader(lang));
-        List<ChatSnapshotModule.Entry> entries = moduleManager.getChatSnapshotModule().getRecentEntries();
-        int start = Math.max(0, entries.size() - limit);
-        for (int i = start; i < entries.size(); i++) {
-            ChatSnapshotModule.Entry entry = entries.get(i);
-            actor.sendMessage(moduleManager.getMessagesModule().getDeleteListEntry(new String[][] {
-                    { "%id%", "%player%", "%message%", "%status%" },
-                    { entry.getId(), entry.getSenderName(), entry.getMessage(), entry.isDeleted() ? "[deleted]" : "" }
-            }, lang));
-        }
     }
 
     private void handleModule(final CommandActor actor, final String[] args, final String lang) {
@@ -539,7 +446,6 @@ public final class ChatSentinelCommandService {
         if ("mutechat".equals(subcommand) || isServerMuteAlias(subcommand)) return CommandPermission.MUTE;
         if ("spy".equals(subcommand)) return moduleManager.getSpyModule().getPermission();
         if ("socialspy".equals(subcommand) || "sspy".equals(subcommand)) return CommandPermission.SOCIALSPY;
-        if ("delete".equals(subcommand)) return CommandPermission.DELETE;
         if ("autocorrect".equals(subcommand) || "correction".equals(subcommand)) return CommandPermission.HELP;
         return CommandPermission.HELP;
     }

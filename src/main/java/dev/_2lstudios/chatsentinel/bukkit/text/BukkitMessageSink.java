@@ -8,9 +8,6 @@ import dev._2lstudios.chatsentinel.shared.text.LegacyText;
 import dev._2lstudios.chatsentinel.shared.text.MessageSink;
 import dev._2lstudios.chatsentinel.shared.text.WarningDeliverySettings;
 import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.BaseComponent;
-import net.md_5.bungee.api.chat.ClickEvent;
-import net.md_5.bungee.api.chat.HoverEvent;
 import net.md_5.bungee.api.chat.TextComponent;
 
 public final class BukkitMessageSink implements MessageSink<Player> {
@@ -37,45 +34,6 @@ public final class BukkitMessageSink implements MessageSink<Player> {
 		}
 		for (final String line : LegacyText.toSectionLines(legacyMessage)) {
 			player.sendMessage(line);
-		}
-	}
-
-	public void sendClickablePrefixMessage(final Player player, final String prefix, final String hover,
-			final String command, final String body) {
-		if (body == null || body.isEmpty()) {
-			return;
-		}
-		sendClickablePrefixMessage(player, prefix, hover, command,
-				TextComponent.fromLegacyText(LegacyText.toSection(body)));
-	}
-
-	public void sendClickablePrefixMessage(final Player player, final String prefix, final String hover,
-			final String command, final BaseComponent[] bodyComponents) {
-		if (player == null || bodyComponents == null || bodyComponents.length == 0) {
-			return;
-		}
-		final String safePrefix = prefix == null ? "" : prefix;
-		final String safeHover = hover == null ? "" : hover;
-		final String safeCommand = command == null ? "" : command;
-		try {
-			final BaseComponent[] prefixComponents = TextComponent.fromLegacyText(LegacyText.toSection(safePrefix));
-			for (final BaseComponent component : prefixComponents) {
-				component.setClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, safeCommand));
-				component.setHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
-						TextComponent.fromLegacyText(LegacyText.toSection(safeHover))));
-			}
-			final BaseComponent[] all = new BaseComponent[prefixComponents.length + bodyComponents.length];
-			System.arraycopy(prefixComponents, 0, all, 0, prefixComponents.length);
-			System.arraycopy(bodyComponents, 0, all, prefixComponents.length, bodyComponents.length);
-			player.spigot().sendMessage(all);
-		} catch (NoClassDefFoundError | NoSuchMethodError | UnsupportedOperationException exception) {
-			final StringBuilder fallback = new StringBuilder(LegacyText.toSection(safePrefix));
-			for (final BaseComponent component : bodyComponents) {
-				if (component != null) {
-					fallback.append(component.toLegacyText());
-				}
-			}
-			sendMessage(player, fallback.toString());
 		}
 	}
 

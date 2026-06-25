@@ -1,6 +1,7 @@
 package dev._2lstudios.chatsentinel.shared.modules;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 
 import dev._2lstudios.chatsentinel.shared.utils.PlaceholderUtil;
@@ -15,59 +16,38 @@ public class MessagesModule {
 	}
 
 	private String getString(String lang, String path) {
-		final Map<String, String> selected = locales.get(lang);
-		if (selected != null) {
-			final String value = selected.get(path);
-			if (value != null && !value.isEmpty()) {
-				return value;
-			}
+		final LookupResult result = lookupString(lang, path);
+		if (result.present) {
+			return result.value;
 		}
-
-		final Map<String, String> configuredDefault = locales.get(defaultLang);
-		if (configuredDefault != null) {
-			final String value = configuredDefault.get(path);
-			if (value != null && !value.isEmpty()) {
-				return value;
-			}
-		}
-
-		final Map<String, String> english = locales.get("en");
-		if (english != null) {
-			final String value = english.get(path);
-			if (value != null && !value.isEmpty()) {
-				return value;
-			}
-		}
-
 		return "<CHATSENTINEL STRING NOT FOUND: " + path + ">";
 	}
 
     private boolean hasString(String lang, String path) {
+        return lookupString(lang, path).present;
+    }
+
+    private LookupResult lookupString(String lang, String path) {
+        LookupResult result = lookupLocale(lang, path);
+        if (result.present) {
+            return result;
+        }
+        result = lookupLocale(defaultLang, path);
+        if (result.present) {
+            return result;
+        }
+        return lookupLocale("en", path);
+    }
+
+    private LookupResult lookupLocale(String lang, String path) {
+        if (locales == null || lang == null || path == null) {
+            return LookupResult.missing();
+        }
         final Map<String, String> selected = locales.get(lang);
-        if (selected != null) {
-            final String value = selected.get(path);
-            if (value != null && !value.isEmpty()) {
-                return true;
-            }
+        if (selected != null && selected.containsKey(path)) {
+            return LookupResult.present(selected.get(path));
         }
-
-        final Map<String, String> configuredDefault = locales.get(defaultLang);
-        if (configuredDefault != null) {
-            final String value = configuredDefault.get(path);
-            if (value != null && !value.isEmpty()) {
-                return true;
-            }
-        }
-
-        final Map<String, String> english = locales.get("en");
-        if (english != null) {
-            final String value = english.get(path);
-            if (value != null && !value.isEmpty()) {
-                return true;
-            }
-        }
-
-        return false;
+        return LookupResult.missing();
     }
 
 	public String getCleared(String[][] placeholders, String lang) {
@@ -91,12 +71,41 @@ public class MessagesModule {
 	}
 
 	public String getWarnMessage(String[][] placeholders, String lang, String module) {
-		String moduleLowerCase = module.toLowerCase();
-		if ("capitalization".equals(moduleLowerCase) && !hasString(lang, "capitalization_warn_message")) {
-			moduleLowerCase = "caps";
-		}
+		return PlaceholderUtil.replacePlaceholders(getString(lang, warnMessagePath(lang, module)), placeholders);
+	}
 
-		return PlaceholderUtil.replacePlaceholders(getString(lang, moduleLowerCase + "_warn_message"), placeholders);
+	public boolean hasWarnMessage(String lang, String module) {
+		return hasString(lang, warnMessagePath(lang, module));
+	}
+
+	private String warnMessagePath(String lang, String module) {
+		final String moduleLowerCase = module == null
+				? ""
+				: module.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+		if ("capitalization".equals(moduleLowerCase)) {
+			if (hasString(lang, "capitalization_warn_message")) {
+				return "capitalization_warn_message";
+			}
+			if (hasString(lang, "caps_warn_message")) {
+				return "caps_warn_message";
+			}
+			return "capitalization_warn_message";
+		}
+		if ("advertisement".equals(moduleLowerCase) || "advertising".equals(moduleLowerCase)) {
+			return "advertising_warn_message";
+		}
+		if ("user".equals(moduleLowerCase) || "custom".equals(moduleLowerCase)) {
+			return "custom_warn_message";
+		}
+		if ("default".equals(moduleLowerCase) || "blacklist".equals(moduleLowerCase)) {
+			return "blacklist_warn_message";
+		}
+		if ("client".equals(moduleLowerCase)
+				&& !hasString(lang, "client_warn_message")
+				&& hasString(lang, "blacklist_warn_message")) {
+			return "blacklist_warn_message";
+		}
+		return moduleLowerCase + "_warn_message";
 	}
 
     public String getBlockedMessage(final String[][] placeholders, final String lang) {
@@ -151,43 +160,7 @@ public class MessagesModule {
         return PlaceholderUtil.replacePlaceholders(getString(lang, "clear_sender_summary"), placeholders);
     }
 
-    public String getDeleteUsage(String lang) {
-        return PlaceholderUtil.replacePlaceholders(getString(lang, "delete_usage"));
-    }
-
-    public String getDeleteUnknown(String[][] placeholders, String lang) {
-        return PlaceholderUtil.replacePlaceholders(getString(lang, "delete_unknown"), placeholders);
-    }
-
-    public String getDeleteDone(String[][] placeholders, String lang) {
-        return PlaceholderUtil.replacePlaceholders(getString(lang, "delete_done"), placeholders);
-    }
-
-    public String getDeleteBypassNotice(String[][] placeholders, String lang) {
-        return PlaceholderUtil.replacePlaceholders(getString(lang, "delete_bypass_notice"), placeholders);
-    }
-
-    public String getDeleteListHeader(String lang) {
-        return PlaceholderUtil.replacePlaceholders(getString(lang, "delete_list_header"));
-    }
-
-    public String getDeleteListEntry(String[][] placeholders, String lang) {
-        return PlaceholderUtil.replacePlaceholders(getString(lang, "delete_list_entry"), placeholders);
-    }
-
-	public String getDeleteRefresh(String lang) {
-		return PlaceholderUtil.replacePlaceholders(getString(lang, "delete_refresh"));
-	}
-
-	public String getDeleteChatUsage(String lang) {
-		return PlaceholderUtil.replacePlaceholders(getString(lang, "deletechat_usage"));
-	}
-
-	public String getRecentChatsUsage(String lang) {
-		return PlaceholderUtil.replacePlaceholders(getString(lang, "recentchats_usage"));
-	}
-
-	public String getCorrectionWarnMessage(String[][] placeholders, String lang) {
+    public String getCorrectionWarnMessage(String[][] placeholders, String lang) {
 		return PlaceholderUtil.replacePlaceholders(getString(lang, "correction_warn_message"), placeholders);
 	}
 
@@ -221,5 +194,23 @@ public class MessagesModule {
 
 	public String getSimilarityWarnMessage(final String[][] placeholders, final String lang) {
 		return PlaceholderUtil.replacePlaceholders(getString(lang, "similarity_warn_message"), placeholders);
+	}
+
+	private static final class LookupResult {
+		private final boolean present;
+		private final String value;
+
+		private LookupResult(boolean present, String value) {
+			this.present = present;
+			this.value = value == null ? "" : value;
+		}
+
+		private static LookupResult present(String value) {
+			return new LookupResult(true, value);
+		}
+
+		private static LookupResult missing() {
+			return new LookupResult(false, "");
+		}
 	}
 }

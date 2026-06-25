@@ -21,7 +21,6 @@ import dev._2lstudios.chatsentinel.shared.filter.FilterMatch;
 import dev._2lstudios.chatsentinel.shared.filter.FilterSource;
 import dev._2lstudios.chatsentinel.shared.filter.CommonRegexGenerator;
 import dev._2lstudios.chatsentinel.shared.modules.CapitalizationModule;
-import dev._2lstudios.chatsentinel.shared.modules.ChatSnapshotModule;
 import dev._2lstudios.chatsentinel.shared.modules.ModuleManager;
 import dev._2lstudios.chatsentinel.shared.platform.ChatUser;
 import dev._2lstudios.chatsentinel.shared.text.WarningDeliverySettings;
@@ -121,21 +120,6 @@ public class SharedUnitTest {
     }
 
     @Test
-    public void chatSnapshot_replayExcludesDeletedEntry() {
-        ChatSnapshotModule module = new ChatSnapshotModule();
-        UUID viewer = UUID.randomUUID();
-        module.loadData(true, 40, 2, ChatSnapshotModule.DEFAULT_PROXY_REPLAY_FORMAT);
-        ChatSnapshotModule.Entry first = module.record(UUID.randomUUID(), "Steve", "first", "first line", Collections.singleton(viewer)).get();
-        module.record(UUID.randomUUID(), "Alex", "second", "second line", Collections.singleton(viewer));
-
-        module.markDeletedEntry(first.getId());
-        String payload = module.buildReplayPayload(viewer);
-
-        assertFalse(payload.contains("first line"));
-        assertTrue(payload.contains("second line"));
-    }
-
-    @Test
     public void getPlayer_returnsSamePlayer_whenChatUserUuidMatches() {
         UUID uuid = UUID.randomUUID();
         dev._2lstudios.chatsentinel.shared.chat.ChatPlayerManager manager = new dev._2lstudios.chatsentinel.shared.chat.ChatPlayerManager();
@@ -220,6 +204,43 @@ public class SharedUnitTest {
         module.loadData("en", locales);
 
         assertEquals("blocked", module.getWarnMessage(new String[][] { { "%message%" }, { "x" } }, "es", "Blacklist"));
+    }
+
+    @Test
+    public void getWarnMessage_returnsEmpty_whenCapitalizationMessageConfiguredEmpty() {
+        dev._2lstudios.chatsentinel.shared.modules.MessagesModule module = new dev._2lstudios.chatsentinel.shared.modules.MessagesModule();
+        java.util.Map<String, java.util.Map<String, String>> locales = new java.util.HashMap<String, java.util.Map<String, String>>();
+        java.util.Map<String, String> en = new java.util.HashMap<String, String>();
+        en.put("capitalization_warn_message", "");
+        en.put("caps_warn_message", "legacy caps");
+        locales.put("en", en);
+        module.loadData("en", locales);
+
+        assertEquals("", module.getWarnMessage(new String[][] { { "%word%" }, { "ABC" } }, "en", "Capitalization"));
+    }
+
+    @Test
+    public void getWarnMessage_usesAdvertisingAliasForAdvertisementModule() {
+        dev._2lstudios.chatsentinel.shared.modules.MessagesModule module = new dev._2lstudios.chatsentinel.shared.modules.MessagesModule();
+        java.util.Map<String, java.util.Map<String, String>> locales = new java.util.HashMap<String, java.util.Map<String, String>>();
+        java.util.Map<String, String> en = new java.util.HashMap<String, String>();
+        en.put("advertising_warn_message", "Advertising is not allowed: %word%.");
+        locales.put("en", en);
+        module.loadData("en", locales);
+
+        assertEquals("Advertising is not allowed: f3f5.ru.", module.getWarnMessage(new String[][] { { "%word%" }, { "f3f5.ru" } }, "en", "advertisement"));
+    }
+
+    @Test
+    public void hasWarnMessage_returnsTrue_whenWarnMessageConfiguredEmpty() {
+        dev._2lstudios.chatsentinel.shared.modules.MessagesModule module = new dev._2lstudios.chatsentinel.shared.modules.MessagesModule();
+        java.util.Map<String, java.util.Map<String, String>> locales = new java.util.HashMap<String, java.util.Map<String, String>>();
+        java.util.Map<String, String> en = new java.util.HashMap<String, String>();
+        en.put("capitalization_warn_message", "");
+        locales.put("en", en);
+        module.loadData("en", locales);
+
+        assertTrue(module.hasWarnMessage("en", "capitalization"));
     }
 
     private static final class TestModuleManager extends ModuleManager {

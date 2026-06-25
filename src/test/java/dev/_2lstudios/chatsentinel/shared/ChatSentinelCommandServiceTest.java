@@ -7,7 +7,6 @@ import dev._2lstudios.chatsentinel.shared.config.MutableModuleConfigStore;
 import dev._2lstudios.chatsentinel.shared.filter.FilterCompileStatus;
 import dev._2lstudios.chatsentinel.shared.filter.UserFilterWriter;
 import dev._2lstudios.chatsentinel.shared.filter.UserRegexAddService;
-import dev._2lstudios.chatsentinel.shared.modules.ChatSnapshotModule;
 import dev._2lstudios.chatsentinel.shared.modules.GeneralModule;
 import dev._2lstudios.chatsentinel.shared.modules.ModuleManager;
 import dev._2lstudios.chatsentinel.shared.platform.ChatPlatform;
@@ -102,70 +101,18 @@ public class ChatSentinelCommandServiceTest {
     }
 
     @Test
-    public void delete_replaysSnapshotWithoutDeletedMessage() {
+    public void help_doesNotMentionDeleteOrRecentchats() {
         TestModuleManager modules = modules();
-        FakeUser normal = new FakeUser(UUID.randomUUID(), "Normal", false);
-        FakeUser bypass = new FakeUser(UUID.randomUUID(), "Bypass", true);
-        ChatSnapshotModule.Entry first = modules.getChatSnapshotModule().record(UUID.randomUUID(), "Steve", "first", "first line", Collections.<UUID>emptyList()).get();
-        modules.getChatSnapshotModule().record(UUID.randomUUID(), "Alex", "second", "second line", Collections.<UUID>emptyList());
-        ChatSentinelCommandService service = service(modules, new FakePlatform(normal, bypass), new FakeConfigStore(), new FakeWriter());
-
-        service.execute(new FakeActor("Admin"), new String[] { "delete", first.getId() });
-
-        assertFalse(normal.messages.get(0).contains("first line"));
-        assertTrue(normal.messages.get(0).contains("second line"));
-        assertTrue(bypass.messages.get(0).contains("second line"));
-        assertFalse(bypass.messages.get(0).contains("first line"));
-    }
-
-    @Test
-    public void deletechatAlias_replaysSnapshotWithoutDeletedMessage() {
-        TestModuleManager modules = modules();
-        FakeUser normal = new FakeUser(UUID.randomUUID(), "Normal", false);
-        FakeUser bypass = new FakeUser(UUID.randomUUID(), "Bypass", true);
-        ChatSnapshotModule.Entry first = modules.getChatSnapshotModule().record(UUID.randomUUID(), "Steve", "first", "first line", Collections.<UUID>emptyList()).get();
-        modules.getChatSnapshotModule().record(UUID.randomUUID(), "Alex", "second", "second line", Collections.<UUID>emptyList());
-        ChatSentinelCommandService service = service(modules, new FakePlatform(normal, bypass), new FakeConfigStore(), new FakeWriter());
-
-        service.execute(new FakeActor("Admin"), "deletechat", new String[] { first.getId() });
-
-        assertFalse(normal.messages.get(0).contains("first line"));
-        assertTrue(normal.messages.get(0).contains("second line"));
-        assertTrue(bypass.messages.get(0).contains("second line"));
-        assertFalse(bypass.messages.get(0).contains("first line"));
-    }
-
-    @Test
-    public void recentchats_noArgs_respectsHistorySizeNotHardcodedTen() {
-        TestModuleManager modules = modules();
-        int historySize = modules.getChatSnapshotModule().getHistorySize();
-        for (int i = 0; i < historySize + 10; i++) {
-            modules.getChatSnapshotModule().record(UUID.randomUUID(), "Player" + i, "msg" + i, "line" + i, Collections.<UUID>emptyList());
-        }
         FakeActor actor = new FakeActor("Admin");
         ChatSentinelCommandService service = service(modules, new FakePlatform(), new FakeConfigStore(), new FakeWriter());
 
-        service.execute(actor, "recentchats", new String[0]);
+        service.execute(actor, new String[] { "help" });
 
-        int displayedCount = 0;
         for (String msg : actor.messages) {
-            if (msg.contains("Player")) {
-                displayedCount++;
-            }
+            final String lower = msg.toLowerCase(java.util.Locale.ROOT);
+            assertFalse("help output must not mention 'delete': " + msg, lower.contains("delete"));
+            assertFalse("help output must not mention 'recentchats': " + msg, lower.contains("recentchats"));
         }
-        assertEquals("recentchats with no args should list up to historySize entries, not hardcoded 10", historySize, displayedCount);
-    }
-
-    @Test
-    public void deleteList_sendsRecentSnapshotIds() {
-        TestModuleManager modules = modules();
-        ChatSnapshotModule.Entry entry = modules.getChatSnapshotModule().record(UUID.randomUUID(), "Steve", "hello", "line", Collections.<UUID>emptyList()).get();
-        FakeActor actor = new FakeActor("Admin");
-        ChatSentinelCommandService service = service(modules, new FakePlatform(), new FakeConfigStore(), new FakeWriter());
-
-        service.execute(actor, new String[] { "delete", "list" });
-
-        assertTrue(actor.messages.toString().contains(entry.getId()));
     }
 
     private static ChatSentinelCommandService service(TestModuleManager modules, ChatPlatform platform,
@@ -190,13 +137,6 @@ public class ChatSentinelCommandServiceTest {
         en.put("notify-disabled", "notify off");
         en.put("server_mute_enabled", "muted");
         en.put("server_mute_disabled", "unmuted");
-        en.put("delete_usage", "usage");
-        en.put("delete_unknown", "unknown %id%");
-        en.put("delete_done", "done %id%");
-        en.put("delete_bypass_notice", "bypass delete %id%");
-        en.put("delete_list_header", "recent");
-        en.put("delete_list_entry", "%id% %player% %message% %status%");
-        en.put("delete_refresh", "deleted");
         locales.put("en", en);
         manager.getMessagesModule().loadData("en", locales);
         manager.getServerMuteModule().loadData(true, false, "mute.bypass");

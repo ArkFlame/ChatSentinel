@@ -1,6 +1,7 @@
 package dev._2lstudios.chatsentinel.bungee.modules;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -98,7 +99,7 @@ public class BungeeModuleManager extends ModuleManager {
 				configYml.getInt(capitalizationPath + ".warn.max", -1),
 				configYml.getString(capitalizationPath + ".warn.notification", ""),
 				configYml.getBoolean(capitalizationPath + ".warn.webhook-notification", true),
-				configYml.getStringList(capitalizationPath + ".punishments").toArray(new String[0]),
+				readPunishments(configYml, capitalizationPath),
 				configYml.getBoolean(capitalizationPath + ".whitelist-player-names", true),
 				configYml.getStringList(capitalizationPath + ".whitelist").toArray(new String[0]),
 				() -> ChatSentinel.getInstance().getProxy().getPlayers().stream()
@@ -120,7 +121,7 @@ public class BungeeModuleManager extends ModuleManager {
 				configYml.getInt("flood.warn.max"), configYml.getString("flood.pattern"),
 				configYml.getString("flood.warn.notification"),
 				configYml.getBoolean("flood.warn.webhook-notification"),
-				configYml.getStringList("flood.punishments").toArray(new String[0]));
+				readPunishments(configYml, "flood"));
 		getMessagesModule().loadData(messagesYml.getString("default"), locales);
 		getServerMuteModule().loadData(configYml.getBoolean("server-mute.enabled", true),
 				configYml.getBoolean("server-mute.muted", false),
@@ -129,15 +130,7 @@ public class BungeeModuleManager extends ModuleManager {
 				configYml.getString("no-move-chat.bypass-permission", ""),
 				configYml.getDouble("no-move-chat.min-distance-blocks", 5.0D),
 				configYml.getBoolean("no-move-chat.allow-teleport", true));
-		getChatSnapshotModule().loadData(configYml.getBoolean("chat-snapshot.enabled", true),
-				configYml.getInt("chat-snapshot.history-size", ChatSnapshotModule.DEFAULT_HISTORY_SIZE),
-				configYml.getInt("chat-snapshot.clear-lines", ChatSnapshotModule.DEFAULT_CLEAR_LINES),
-				configYml.getString("chat-snapshot.proxy-replay-format", ChatSnapshotModule.DEFAULT_PROXY_REPLAY_FORMAT),
-				configYml.getBoolean("chat-snapshot.live-delete-click.enabled", ChatSnapshotModule.DEFAULT_LIVE_DELETE_CLICK_ENABLED),
-				configYml.getString("chat-snapshot.live-delete-click.permission", ChatSnapshotModule.DEFAULT_LIVE_DELETE_PERMISSION),
-				configYml.getString("chat-snapshot.live-delete-click.prefix", ChatSnapshotModule.DEFAULT_LIVE_DELETE_PREFIX),
-				configYml.getString("chat-snapshot.live-delete-click.hover", ChatSnapshotModule.DEFAULT_LIVE_DELETE_HOVER),
-				configYml.getString("chat-snapshot.live-delete-click.command", ChatSnapshotModule.DEFAULT_LIVE_DELETE_COMMAND));
+		getChatSnapshotModule().loadData(configYml.getInt("chat-snapshot.clear-lines", ChatSnapshotModule.DEFAULT_CLEAR_LINES));
 		getGeneralModule().loadData(configYml.getBoolean("general.sanitize", true),
 				configYml.getBoolean("general.sanitize-names", true),
 				configYml.getBoolean("general.filter-other", false),
@@ -176,7 +169,7 @@ public class BungeeModuleManager extends ModuleManager {
 				configYml.getString("syntax.warn.notification"),
 				configYml.getBoolean("syntax.warn.webhook-notification"),
 				configYml.getStringList("syntax.whitelist").toArray(new String[0]),
-				configYml.getStringList("syntax.punishments").toArray(new String[0]));
+				readPunishments(configYml, "syntax"));
 		getDiscordWebhookModule().loadData(configYml.getBoolean("discord-webhook.enabled"), configYml.getString("discord-webhook.webhook-url"),
 				configYml.getString("discord-webhook.sender.username"),
 				configYml.getString("discord-webhook.sender.avatar-url"),
@@ -221,12 +214,44 @@ public class BungeeModuleManager extends ModuleManager {
 				configYml.getInt(path + ".warn.max", configYml.getInt("blacklist.warn.max")),
 				configYml.getString(path + ".warn.notification", configYml.getString("blacklist.warn.notification")),
 				configYml.getBoolean(path + ".warn.webhook-notification", configYml.getBoolean("blacklist.warn.webhook-notification")),
-				getStringArray(configYml, path + ".punishments", "blacklist.punishments"),
+				readPunishments(configYml, path, "blacklist"),
 				configYml.getBoolean(path + ".block_raw_message", configYml.getBoolean("blacklist.block_raw_message")));
 	}
 
 	private String[] getStringArray(Configuration configYml, String path, String fallbackPath) {
 		return configYml.getStringList(configYml.contains(path) ? path : fallbackPath).toArray(new String[0]);
+	}
+
+	private String[] readPunishments(Configuration configYml, String basePath) {
+		final List<String> values = new ArrayList<String>();
+		appendConfigValue(values, configYml.get(basePath + ".punishments"));
+		appendConfigValue(values, configYml.get(basePath + ".punishment.commands"));
+		appendConfigValue(values, configYml.get(basePath + ".punishment.command"));
+		appendConfigValue(values, configYml.get(basePath + ".punishment"));
+		return values.toArray(new String[0]);
+	}
+
+	private String[] readPunishments(Configuration configYml, String basePath, String fallbackBasePath) {
+		final String[] values = readPunishments(configYml, basePath);
+		return values.length == 0 ? readPunishments(configYml, fallbackBasePath) : values;
+	}
+
+	private void appendConfigValue(List<String> values, Object value) {
+		if (value instanceof Iterable<?>) {
+			for (Object element : (Iterable<?>) value) {
+				appendString(values, element == null ? null : String.valueOf(element));
+			}
+			return;
+		}
+		if (value instanceof String) {
+			appendString(values, (String) value);
+		}
+	}
+
+	private void appendString(List<String> values, String value) {
+		if (value != null && !value.trim().isEmpty()) {
+			values.add(value);
+		}
 	}
 
 	private Map<String, String> readStringMap(final Configuration section) {

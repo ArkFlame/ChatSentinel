@@ -7,7 +7,6 @@ import dev._2lstudios.chatsentinel.shared.chat.ChatNotificationManager;
 import dev._2lstudios.chatsentinel.shared.chat.ChatPlayer;
 import dev._2lstudios.chatsentinel.shared.chat.ChatPlayerManager;
 import dev._2lstudios.chatsentinel.shared.modules.GeneralModule;
-import dev._2lstudios.chatsentinel.shared.modules.ChatSnapshotModule;
 import dev._2lstudios.chatsentinel.shared.platform.ChatPlatform;
 import dev._2lstudios.chatsentinel.shared.platform.ChatUser;
 import dev._2lstudios.chatsentinel.shared.text.LegacyText;
@@ -69,48 +68,6 @@ public final class BukkitChatPlatform implements ChatPlatform {
     public Optional<ChatUser> findUser(final UUID uniqueId) {
         final Player player = onlinePlayers.get(uniqueId);
         return player == null ? Optional.<ChatUser>empty() : Optional.<ChatUser>of(new BukkitChatUser(plugin, player, messageSink));
-    }
-
-    @Override
-    public void replayChatSnapshot(final ChatSnapshotModule snapshotModule) {
-        if (snapshotModule == null) {
-            return;
-        }
-        for (final Player player : new ArrayList<Player>(onlinePlayers.values())) {
-            if (player == null) {
-                continue;
-            }
-            FoliaAPI.runTaskForEntity(plugin, player, new Runnable() {
-                @Override
-                public void run() {
-                    replayChatSnapshotToPlayer(player, snapshotModule);
-                }
-            }, new Runnable() {
-                @Override
-                public void run() {
-                    plugin.getLogger().fine("Skipped chat replay delivery to retired player " + player.getName());
-                }
-            }, 0L);
-        }
-    }
-
-    private void replayChatSnapshotToPlayer(final Player player, final ChatSnapshotModule snapshotModule) {
-        if (player == null || !player.isOnline()) {
-            return;
-        }
-        messageSink.sendBlankLines(player, snapshotModule.getClearLines());
-        for (final ChatSnapshotModule.Entry entry : snapshotModule.getVisibleEntriesFor(player.getUniqueId())) {
-            if (entry == null) {
-                continue;
-            }
-            if (snapshotModule.isLiveDeleteClickEnabled() && player.hasPermission(snapshotModule.getLiveDeletePermission())) {
-                messageSink.sendClickablePrefixMessage(player, snapshotModule.getLiveDeletePrefix(),
-                        snapshotModule.getLiveDeleteHover(), snapshotModule.buildLiveDeleteCommand(entry.getId()),
-                        entry.getRenderedLine());
-            } else {
-                messageSink.sendMessage(player, entry.getRenderedLine());
-            }
-        }
     }
 
     @Override

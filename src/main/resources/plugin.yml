@@ -4,8 +4,6 @@ author: ${author}
 version: ${version}
 url: ${url}
 main: dev._2lstudios.chatsentinel.bukkit.ChatSentinel
-depend:
-  - packetevents
 softdepend:
   - Essentials
   - EssentialsLite
@@ -24,8 +22,6 @@ commands:
       - muteserver
       - socialspy
       - sspy
-      - deletechat
-      - recentchats
 
 permissions:
   chatsentinel.admin:
@@ -37,7 +33,6 @@ permissions:
       chatsentinel.clear: true
       chatsentinel.notify: true
       chatsentinel.spy: true
-      chatsentinel.delete: true
       chatsentinel.module: true
       chatsentinel.regex.add: true
       chatsentinel.mute: true

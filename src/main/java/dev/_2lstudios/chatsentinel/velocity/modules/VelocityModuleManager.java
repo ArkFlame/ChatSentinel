@@ -24,6 +24,7 @@ import org.spongepowered.configurate.ConfigurationNode;
 
 import java.lang.reflect.Field;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -83,9 +84,7 @@ public class VelocityModuleManager extends ModuleManager {
 				configYml.node(capitalizationKey, "warn", "max").getInt(-1),
 				configYml.node(capitalizationKey, "warn", "notification").getString(""),
 				configYml.node(capitalizationKey, "warn", "webhook-notification").getBoolean(true),
-				configYml.node(capitalizationKey, "punishments").childrenList().stream()
-						.map(ConfigurationNode::getString)
-						.toArray(String[]::new),
+				readPunishments(configYml.node(capitalizationKey)),
 				configYml.node(capitalizationKey, "whitelist-player-names").getBoolean(true),
 				configYml.node(capitalizationKey, "whitelist").childrenList().stream()
 						.map(ConfigurationNode::getString)
@@ -113,9 +112,7 @@ public class VelocityModuleManager extends ModuleManager {
 				configYml.node("flood", "warn", "max").getInt(), configYml.node("flood", "pattern").getString(),
 				configYml.node("flood", "warn", "notification").getString(),
 				configYml.node("flood", "warn", "webhook-notification").getBoolean(),
-				configYml.node("flood", "punishments").childrenList().stream()
-						.map(ConfigurationNode::getString)
-						.toArray(String[]::new));
+				readPunishments(configYml.node("flood")));
 		getMessagesModule().loadData(messagesYml.node("default").getString(), locales);
 		getServerMuteModule().loadData(configYml.node("server-mute", "enabled").getBoolean(true),
 				configYml.node("server-mute", "muted").getBoolean(false),
@@ -124,15 +121,7 @@ public class VelocityModuleManager extends ModuleManager {
 				configYml.node("no-move-chat", "bypass-permission").getString(""),
 				configYml.node("no-move-chat", "min-distance-blocks").getDouble(5.0D),
 				configYml.node("no-move-chat", "allow-teleport").getBoolean(true));
-		getChatSnapshotModule().loadData(configYml.node("chat-snapshot", "enabled").getBoolean(true),
-				configYml.node("chat-snapshot", "history-size").getInt(ChatSnapshotModule.DEFAULT_HISTORY_SIZE),
-				configYml.node("chat-snapshot", "clear-lines").getInt(ChatSnapshotModule.DEFAULT_CLEAR_LINES),
-				configYml.node("chat-snapshot", "proxy-replay-format").getString(ChatSnapshotModule.DEFAULT_PROXY_REPLAY_FORMAT),
-				configYml.node("chat-snapshot", "live-delete-click", "enabled").getBoolean(ChatSnapshotModule.DEFAULT_LIVE_DELETE_CLICK_ENABLED),
-				configYml.node("chat-snapshot", "live-delete-click", "permission").getString(ChatSnapshotModule.DEFAULT_LIVE_DELETE_PERMISSION),
-				configYml.node("chat-snapshot", "live-delete-click", "prefix").getString(ChatSnapshotModule.DEFAULT_LIVE_DELETE_PREFIX),
-				configYml.node("chat-snapshot", "live-delete-click", "hover").getString(ChatSnapshotModule.DEFAULT_LIVE_DELETE_HOVER),
-				configYml.node("chat-snapshot", "live-delete-click", "command").getString(ChatSnapshotModule.DEFAULT_LIVE_DELETE_COMMAND));
+		getChatSnapshotModule().loadData(configYml.node("chat-snapshot", "clear-lines").getInt(ChatSnapshotModule.DEFAULT_CLEAR_LINES));
 		getGeneralModule().loadData(configYml.node("general", "sanitize").getBoolean(true),
 				configYml.node("general", "sanitize-names").getBoolean(true),
 				configYml.node("general", "filter-other").getBoolean(false),
@@ -185,9 +174,7 @@ public class VelocityModuleManager extends ModuleManager {
 				configYml.node("blacklist", "warn", "max").getInt(),
 				configYml.node("blacklist", "warn", "notification").getString(),
 				configYml.node("blacklist", "warn", "webhook-notification").getBoolean(),
-				configYml.node("blacklist", "punishments").childrenList().stream()
-						.map(ConfigurationNode::getString)
-						.toArray(String[]::new),
+				readPunishments(configYml.node("blacklist")),
 				configYml.node("blacklist", "block_raw_message").getBoolean());
 		Map<String, FilterModuleSettings> blacklistSettings = buildBlacklistSettings(configYml, defaultBlacklistSettings);
 		FilterModuleSettingsRegistry settingsRegistry = new FilterModuleSettingsRegistry(blacklistSettings, defaultBlacklistSettings);
@@ -235,9 +222,7 @@ public class VelocityModuleManager extends ModuleManager {
 				configYml.node("syntax", "whitelist").childrenList().stream()
 						.map(ConfigurationNode::getString)
 						.toArray(String[]::new),
-				configYml.node("syntax", "punishments").childrenList().stream()
-						.map(ConfigurationNode::getString)
-						.toArray(String[]::new));
+				readPunishments(configYml.node("syntax")));
 		getDiscordWebhookModule().loadData(configYml.node("discord-webhook", "enabled").getBoolean(),
 				configYml.node("discord-webhook", "webhook-url").getString(),
 				configYml.node("discord-webhook", "sender", "username").getString(),
@@ -297,11 +282,7 @@ public class VelocityModuleManager extends ModuleManager {
 					moduleNode.node("warn", "max").getInt(fallback.getMaxWarns()),
 					moduleNode.node("warn", "notification").getString(fallback.getWarnNotification()),
 					moduleNode.node("warn", "webhook-notification").getBoolean(fallback.isWebhookEnabled()),
-					moduleNode.node("punishments").childrenList().isEmpty()
-							? fallback.getCommands()
-							: moduleNode.node("punishments").childrenList().stream()
-									.map(ConfigurationNode::getString)
-									.toArray(String[]::new),
+					readPunishments(moduleNode, fallback.getCommands()),
 					moduleNode.node("block_raw_message").getBoolean(fallback.isBlockRawMessage()));
 			settingsByModuleId.put(settings.getModuleId(), settings);
 		}
@@ -331,6 +312,38 @@ public class VelocityModuleManager extends ModuleManager {
 			}
 		}
 		return result;
+	}
+
+	private String[] readPunishments(final ConfigurationNode node) {
+		final List<String> values = new ArrayList<String>();
+		appendNodeList(values, node.node("punishments"));
+		appendNodeList(values, node.node("punishment", "commands"));
+		appendString(values, node.node("punishment", "command").getString());
+		final ConfigurationNode single = node.node("punishment");
+		if (single.childrenMap().isEmpty() && single.childrenList().isEmpty()) {
+			appendString(values, single.getString());
+		}
+		return values.toArray(new String[0]);
+	}
+
+	private String[] readPunishments(final ConfigurationNode node, final String[] fallback) {
+		final String[] values = readPunishments(node);
+		return values.length == 0 ? fallback.clone() : values;
+	}
+
+	private void appendNodeList(final List<String> values, final ConfigurationNode node) {
+		if (node == null) {
+			return;
+		}
+		for (final ConfigurationNode child : node.childrenList()) {
+			appendString(values, child.getString());
+		}
+	}
+
+	private void appendString(final List<String> values, final String value) {
+		if (value != null && !value.trim().isEmpty()) {
+			values.add(value);
+		}
 	}
 
 	private void loadSocialSpy(final CommentedConfigurationNode configYml) {

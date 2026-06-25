@@ -31,4 +31,40 @@ public final class LegacyChatFormatRendererTest {
 
         assertEquals("Steve > Hello", rendered);
     }
+
+    @Test
+    public void render_appendsMessage_whenFormatOnlyContainsPlayerPlaceholder() {
+        final LegacyChatFormatRenderer renderer = new LegacyChatFormatRenderer();
+
+        final String rendered = renderer.render("&cOWNER %s:", "LinsaFTW", "LinsaFTW", "asdas");
+
+        assertEquals("&cOWNER LinsaFTW: asdas", rendered);
+    }
+
+    @Test
+    public void render_appendsMessage_whenFormatHasNoFormatterPlaceholders() {
+        final LegacyChatFormatRenderer renderer = new LegacyChatFormatRenderer();
+
+        final String rendered = renderer.render("&cOWNER LinsaFTW:", "LinsaFTW", "LinsaFTW", "asdas");
+
+        assertEquals("&cOWNER LinsaFTW: asdas", rendered);
+    }
+
+    @Test
+    public void render_preservesPreRenderedFormat_whenMessageAlreadyPresent() {
+        final LegacyChatFormatRenderer renderer = new LegacyChatFormatRenderer();
+
+        final String rendered = renderer.render("&cOWNER LinsaFTW: asdas", "LinsaFTW", "LinsaFTW", "asdas");
+
+        assertEquals("&cOWNER LinsaFTW: asdas", rendered);
+    }
+
+    @Test
+    public void render_preservesChatControlEscapedPercentPreRenderedFormat_whenMessageAlreadyPresent() {
+        final LegacyChatFormatRenderer renderer = new LegacyChatFormatRenderer();
+
+        final String rendered = renderer.render("&7[100%%] LinsaFTW: asdas", "LinsaFTW", "LinsaFTW", "asdas");
+
+        assertEquals("&7[100%] LinsaFTW: asdas", rendered);
+    }
 }

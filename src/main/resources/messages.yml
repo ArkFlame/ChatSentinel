@@ -9,15 +9,6 @@ langs:
     cleared: "&dGame chat has been cleared by &f%player%&d. Reason: &f%reason%"
     clear_bypass_notice: "&7Chat was cleared by &f%player%&7, but you bypassed clear. Reason: &f%reason%"
     clear_sender_summary: "&aChat clear sent to %cleared% players; skipped %bypassed% bypass players."
-    delete_usage: "&cUsage: /chatsentinel delete <id>|list [limit]"
-    delete_unknown: "&cUnknown snapshot message id: %id%"
-    delete_done: "&aDeleted chat message %id%. Visible chat replay sent."
-    delete_bypass_notice: "&7Chat message %id% was deleted, but you bypassed chat refresh."
-    delete_list_header: "&aRecent chat snapshot messages:"
-    delete_list_entry: "&7%id% &8| &f%player%&7: %message% &8%status%"
-    delete_refresh: "deleted"
-    deletechat_usage: "&cUsage: /deletechat <id>"
-    recentchats_usage: "&cUsage: /recentchats [limit]"
     reload: "&c&lCS: &aPlugin successfully reloaded!"
     help: |-
       &aChatSentinel commands:
@@ -52,15 +43,6 @@ langs:
     cleared: "&dGame chat has been cleared by &f%player%&d. Reason: &f%reason%"
     clear_bypass_notice: "&7Chat was cleared by &f%player%&7, but you bypassed clear. Reason: &f%reason%"
     clear_sender_summary: "&aChat clear sent to %cleared% players; skipped %bypassed% bypass players."
-    delete_usage: "&cUsage: /chatsentinel delete <id>|list [limit]"
-    delete_unknown: "&cUnknown snapshot message id: %id%"
-    delete_done: "&aDeleted chat message %id%. Visible chat replay sent."
-    delete_bypass_notice: "&7Chat message %id% was deleted, but you bypassed chat refresh."
-    delete_list_header: "&aRecent chat snapshot messages:"
-    delete_list_entry: "&7%id% &8| &f%player%&7: %message% &8%status%"
-    delete_refresh: "eliminado"
-    deletechat_usage: "&cUso: /deletechat <id>"
-    recentchats_usage: "&cUso: /recentchats [limite]"
     reload: "&c&lCS: &aPlugin recargado correctamente!"
     help: |-
       &aComandos de ChatSentinel:
@@ -95,15 +77,6 @@ langs:
     cleared: "&dGame chat has been cleared by &f%player%&d. Reason: &f%reason%"
     clear_bypass_notice: "&7Chat was cleared by &f%player%&7, but you bypassed clear. Reason: &f%reason%"
     clear_sender_summary: "&aChat clear sent to %cleared% players; skipped %bypassed% bypass players."
-    delete_usage: "&cUsage: /chatsentinel delete <id>|list [limit]"
-    delete_unknown: "&cUnknown snapshot message id: %id%"
-    delete_done: "&aDeleted chat message %id%. Visible chat replay sent."
-    delete_bypass_notice: "&7Chat message %id% was deleted, but you bypassed chat refresh."
-    delete_list_header: "&aRecent chat snapshot messages:"
-    delete_list_entry: "&7%id% &8| &f%player%&7: %message% &8%status%"
-    delete_refresh: "eliminado"
-    deletechat_usage: "&cUso: /deletechat <id>"
-    recentchats_usage: "&cUso: /recentchats [limite]"
     reload: "&c&lCS: &aPlugin recarregado com sucesso!"
     help: |-
       &aComandos do ChatSentinel:
