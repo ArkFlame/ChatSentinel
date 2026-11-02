@@ -85,20 +85,7 @@ public class BukkitModuleManager extends ModuleManager {
 				configYml.getString("spy.format", "&8[&bCS Spy&8] &e%player% &7failed &6%module% &8file=&f%source_file% &8match=&c%matched_text% &8msg=&f%message%"));
 		loadSocialSpy(configYml);
 		FilterModuleSettingsRegistry blacklistSettingsRegistry = buildBlacklistSettingsRegistry(configYml);
-		Map<String, Map<String, String>> locales = new HashMap<>();
-
-		for (String lang : messagesYml.getConfigurationSection("langs").getKeys(false)) {
-			ConfigurationSection langSection = messagesYml.getConfigurationSection("langs." + lang);
-			Map<String, String> messages = new HashMap<>();
-
-			for (String key : langSection.getKeys(false)) {
-				String value = langSection.getString(key);
-
-				messages.put(key, value);
-			}
-
-			locales.put(lang, messages);
-		}
+		Map<String, Map<String, String>> locales = loadLocales(messagesYml);
 
 		String capitalizationPath = configYml.contains("capitalization") ? "capitalization" : "caps";
 		getCapitalizationModule().loadData(configYml.getBoolean(capitalizationPath + ".enabled", true),
@@ -207,6 +194,53 @@ public class BukkitModuleManager extends ModuleManager {
 		configYml.set("server-mute.muted", muted);
 		configYml.save(new File(ChatSentinel.getInstance().getDataFolder(), "config.yml"));
 		getServerMuteModule().setMuted(muted);
+	}
+
+	private Map<String, Map<String, String>> loadLocales(final Configuration messagesYml) {
+		final Map<String, Map<String, String>> locales = new HashMap<String, Map<String, String>>();
+		final ConfigurationSection langs = messagesYml.getConfigurationSection("langs");
+		if (langs == null) {
+			return locales;
+		}
+		for (String lang : langs.getKeys(false)) {
+			final ConfigurationSection langSection = langs.getConfigurationSection(lang);
+			final Map<String, String> messages = new HashMap<String, String>();
+			flattenSection(langSection, "", messages);
+			locales.put(lang, messages);
+		}
+		return locales;
+	}
+
+	private void flattenSection(final ConfigurationSection section, final String prefix,
+			final Map<String, String> out) {
+		if (section == null) {
+			return;
+		}
+		for (String key : section.getKeys(false)) {
+			final String path = prefix.isEmpty() ? key : prefix + "." + key;
+			final ConfigurationSection child = section.getConfigurationSection(key);
+			if (child != null) {
+				flattenSection(child, path, out);
+				continue;
+			}
+			final Object value = section.get(key);
+			if (value instanceof java.util.List) {
+				out.put(path, joinLines((java.util.List<?>) value));
+			} else if (value != null) {
+				out.put(path, String.valueOf(value));
+			}
+		}
+	}
+
+	private String joinLines(final java.util.List<?> lines) {
+		final StringBuilder builder = new StringBuilder();
+		for (Object line : lines) {
+			if (builder.length() > 0) {
+				builder.append('\n');
+			}
+			builder.append(line == null ? "" : String.valueOf(line));
+		}
+		return builder.toString();
 	}
 
 	private FilterModuleSettingsRegistry buildBlacklistSettingsRegistry(Configuration configYml) {

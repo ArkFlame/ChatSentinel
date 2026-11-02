@@ -1,112 +1,208 @@
-# You can add as many languages as you want.
-# The language will change depending on the client language.
-# Supported Languages: https://minecraft.gamepedia.com/Language
+# ChatSentinel messages
+#
+# Every message is grouped by domain. The keys below are the full list of
+# messages this plugin can send, so nothing is hidden.
+#
+# Cancellation text lives under "cancel":
+#   cancel.fallback   shown when a module cancels a message and has no specific text
+#   cancel.<module>   shown when that module cancels a message
+#                     (flood, syntax, cooldown, similarity, blacklist, ...)
+#
+# Set a message to "" to disable it. Missing keys fall back to the bundled
+# English default, so you never need to copy new keys by hand after an update.
+#
+# Colour codes use "&". Colours work on Spigot/Paper, BungeeCord and Velocity.
+
+# Language used when a player's client language has no section below.
 default: "en"
 
-# You can add as many languages as you want.
 langs:
   en:
-    cleared: "&dGame chat has been cleared by &f%player%&d. Reason: &f%reason%"
-    clear_bypass_notice: "&7Chat was cleared by &f%player%&7, but you bypassed clear. Reason: &f%reason%"
-    clear_sender_summary: "&aChat clear sent to %cleared% players; skipped %bypassed% bypass players."
-    reload: "&c&lCS: &aPlugin successfully reloaded!"
-    help: |-
-      &aChatSentinel commands:
-      &e/chatsentinel help &7- &bShows this help message!
-      &e/chatsentinel reload &7- &bReloads the plugin!
-    unknown_command: "&cUnknown command. Use /chatsentinel help to see available commands!"
-    no_permission: "&cYou dont have permission to use this command!"
-    blocked_message: "&c&lCS: &cYou cannot write that: &f%word%&c. If you continue, you will be automatically muted."
-    blacklist_warn_message: "&c&lCS: &cYou cannot write that: &f%word%&c. If you continue, you will be automatically muted."
-    security_warn_message: "&c&lCS: &cYour message matched a security protection rule."
-    advertising_warn_message: "&c&lCS: &cAdvertising is not allowed: &f%word%&c. If you continue, you will be automatically muted."
-    offense_warn_message: "&c&lCS: &cYou cannot write that: &f%word%&c. If you continue, you will be automatically muted."
-    custom_warn_message: "&c&lCS: &cYou cannot write that: &f%word%&c. If you continue, you will be automatically muted."
-    capitalization_warn_message: "&6&lCS: &ePlease avoid excessive capitalization. Your message was corrected."
-    cooldown_warn_message: "&c&lCS: &cYou can write your next message in %cooldown% seconds"
-    flood_warn_message: "&c&lCS: &cYou cant send too large messages!"
-    syntax_warn_message: "&c&lCS: &cSyntax is disabled in this server!"
-    filtered: "&c&lCS: &cYour message was filtered by ChatSentinel! (Characters not allowed)"
-    notify-enabled: "&aChatSentinel notifications are now enabled!"
-    notify-disabled: "&cChatSentinel notifications are now disabled!"
-    server_muted: "&c&lCS: &cChat is currently muted."
-    no_move_chat_warn_message: "&c&lCS: &cPlease move at least %distance% blocks before typing into chat."
-    server_mute_enabled: "&dThe channel standard has been muted by &f%player%&d. Reason: &f%reason%"
-    server_mute_disabled: "&dThe channel standard has been unmuted by &f%player%&d. Reason: &f%reason%"
-    correction_warn_message: "&a&lCS: &7One of your words was corrected. Use &e/autocorrect off &7to disable this."
-    correction_enabled: "&aAuto-correction enabled."
-    correction_disabled: "&cAuto-correction disabled."
-    correction_usage: "&cUsage: /autocorrect [on|off|toggle]"
-    correction_console_only: "&cOnly players can toggle auto-correction."
-    similarity_warn_message: "&c&lCS: &cStop writing similar messages. Similarity: %similarity%"
-    cancellation_fallback: "&c&lCS: &cYour input was blocked by &f%module%&c."
+    general:
+      no_permission: "&cYou do not have permission to use this command!"
+      unknown_command: "&cUnknown command. Use &f/chatsentinel help&c to see available commands."
+      reload: "&a&lCS: &aConfiguration reloaded."
+      console_only: "&cOnly players can use this feature."
+      notify_enabled: "&aChatSentinel notifications are now enabled!"
+      notify_disabled: "&cChatSentinel notifications are now disabled!"
+      usage: "&cUsage: &f%usage%"
+
+    help:
+      header: "&a&lChatSentinel &7commands:"
+      lines: |-
+        &e/chatsentinel help &7- &bShows this help message.
+        &e/chatsentinel reload &7- &bReloads config, messages and filters.
+        &e/chatsentinel status &7- &bShows module and filter status.
+        &e/chatsentinel module list|enable|disable|toggle <module> &7- &bManages modules live.
+        &e/chatsentinel clear [reason] &7- &bClears visible chat.
+        &e/chatsentinel notify &7- &bToggles moderation notifications.
+        &e/chatsentinel spy &7- &bToggles spy alerts.
+        &e/chatsentinel regex add <module> common|raw <text> &7- &bAdds a custom filter.
+        &e/servermute [on|off|toggle] [reason] &7- &bMutes or unmutes chat.
+        &e/socialspy [module|status] &7- &bToggles SocialSpy modules.
+        &e/autocorrect [on|off|toggle] &7- &bToggles personal correction.
+
+    spy:
+      enabled: "&aSpy alerts enabled."
+      disabled: "&cSpy alerts disabled."
+
+    chat:
+      clear: "&dGame chat has been cleared by &f%player%&d. Reason: &f%reason%"
+      clear_bypass: "&7Chat was cleared by &f%player%&7, but you bypassed it. Reason: &f%reason%"
+      clear_summary: "&aChat clear sent to &f%cleared%&a players; skipped &f%bypassed%&a bypass players."
+      server_muted: "&c&lCS: &cChat is currently muted."
+
+    # Shown to the player who was stopped.
+    cancel:
+      fallback: "&c&lCS: &cYour message was blocked by &f%module%&c."
+      blacklist: "&c&lCS: &cYou cannot write that: &f%word%&c."
+      security: "&c&lCS: &cYour message matched a security protection rule."
+      advertisement: "&c&lCS: &cAdvertising is not allowed: &f%word%&c."
+      offense: "&c&lCS: &cYou cannot write that: &f%word%&c."
+      user: "&c&lCS: &cYou cannot write that: &f%word%&c."
+      client: "&c&lCS: &cYou cannot write that: &f%word%&c."
+      flood: "&c&lCS: &cPlease do not flood the chat."
+      syntax: "&c&lCS: &cSyntax is disabled on this server."
+      cooldown: "&c&lCS: &cYou can write your next message in &f%cooldown% &cseconds."
+      similarity: "&c&lCS: &cStop repeating similar messages. Similarity: &f%similarity%"
+      capitalization: "&6&lCS: &ePlease avoid excessive capitalization."
+      allowed_characters: "&c&lCS: &cYour message contains characters that are not allowed."
+      no_move_chat: "&c&lCS: &cPlease move at least &f%distance% &cblocks before typing in chat."
+      server_mute: "&c&lCS: &cChat is currently muted."
+
+    server_mute:
+      enabled: "&dChat has been muted by &f%player%&d. Reason: &f%reason%"
+      disabled: "&dChat has been unmuted by &f%player%&d. Reason: &f%reason%"
+
+    correction:
+      enabled: "&aAuto-correction enabled."
+      disabled: "&cAuto-correction disabled."
+      usage: "&cUsage: &f/autocorrect [on|off|toggle]"
+      console_only: "&cOnly players can toggle auto-correction."
+      notice: "&7&lCS: &7One of your words was corrected. Use &e/autocorrect off &7to disable this."
+
   es:
-    cleared: "&dGame chat has been cleared by &f%player%&d. Reason: &f%reason%"
-    clear_bypass_notice: "&7Chat was cleared by &f%player%&7, but you bypassed clear. Reason: &f%reason%"
-    clear_sender_summary: "&aChat clear sent to %cleared% players; skipped %bypassed% bypass players."
-    reload: "&c&lCS: &aPlugin recargado correctamente!"
-    help: |-
-      &aComandos de ChatSentinel:
-      &e/chatsentinel help &7- &bMira este mensaje de ayuda!
-      &e/chatsentinel reload &7- &bRecarga el plugin!
-    unknown_command: "&cComando desconocido. Usa /chatsentinel help para ver comandos disponibles!"
-    no_permission: "&cNo tienes permisos para usar este comando!"
-    blocked_message: "&c&lCS: &cNo puedes escribir eso: &f%word%&c. Si continuas, seras muteado automaticamente."
-    blacklist_warn_message: "&c&lCS: &cNo puedes escribir eso: &f%word%&c. Si continuas, seras muteado automaticamente."
-    security_warn_message: "&c&lCS: &cTu mensaje coincidio con una regla de seguridad."
-    advertising_warn_message: "&c&lCS: &cNo se permite publicidad: &f%word%&c. Si continuas, seras muteado automaticamente."
-    offense_warn_message: "&c&lCS: &cNo puedes escribir eso: &f%word%&c. Si continuas, seras muteado automaticamente."
-    custom_warn_message: "&c&lCS: &cNo puedes escribir eso: &f%word%&c. Si continuas, seras muteado automaticamente."
-    capitalization_warn_message: "&6&lCS: &eEvita usar mayusculas excesivas. Tu mensaje fue corregido."
-    cooldown_warn_message: "&c&lCS: &cEspera %cooldown% segundos antes de enviar tu proximo mensaje!"
-    flood_warn_message: "&c&lCS: &cNo puedes enviar mensajes tan largos!"
-    syntax_warn_message: "&c&lCS: &cLa sintaxis esta deshabilitada en este servidor!"
-    filtered: "&c&lCS: &cTu mensaje fue filtrado por ChatSentinel! (Caracteres no permitidos)"
-    notify-enabled: "&a¡Las notificaciones de ChatSentinel ahora están habilitadas!"
-    notify-disabled: "&c¡Las notificaciones de ChatSentinel ahora están deshabilitadas!"
-    server_muted: "&c&lCS: &cEl chat esta silenciado."
-    no_move_chat_warn_message: "&c&lCS: &cMuevete al menos %distance% bloques antes de escribir en el chat."
-    server_mute_enabled: "&dEl canal estandar fue silenciado por &f%player%&d. Razon: &f%reason%"
-    server_mute_disabled: "&dEl canal estandar fue activado por &f%player%&d. Razon: &f%reason%"
-    correction_warn_message: "&a&lCS: &7Una de tus palabras fue corregida. Usa &e/autocorrect off &7para desactivar esto."
-    correction_enabled: "&aAuto-correccion activada."
-    correction_disabled: "&cAuto-correccion desactivada."
-    correction_usage: "&cUso: /autocorrect [on|off|toggle]"
-    correction_console_only: "&cSolo los jugadores pueden activar o desactivar la auto-correccion."
-    similarity_warn_message: "&c&lCS: &cDeja de escribir mensajes similares. Similitud: %similarity%"
-    cancellation_fallback: "&c&lCS: &cYour input was blocked by &f%module%&c."
+    general:
+      no_permission: "&cNo tienes permiso para usar este comando!"
+      unknown_command: "&cComando desconocido. Usa &f/chatsentinel help&c para ver los comandos."
+      reload: "&a&lCS: &aConfiguracion recargada."
+      console_only: "&cSolo los jugadores pueden usar esta funcion."
+      notify_enabled: "&aNotificaciones de ChatSentinel activadas!"
+      notify_disabled: "&cNotificaciones de ChatSentinel desactivadas!"
+      usage: "&cUso: &f%usage%"
+
+    help:
+      header: "&a&lChatSentinel &7comandos:"
+      lines: |-
+        &e/chatsentinel help &7- &bMuestra este mensaje de ayuda.
+        &e/chatsentinel reload &7- &bRecarga configuracion, mensajes y filtros.
+        &e/chatsentinel status &7- &bMuestra el estado de los modulos.
+        &e/chatsentinel module list|enable|disable|toggle <modulo> &7- &bAdministra modulos.
+        &e/chatsentinel clear [motivo] &7- &bLimpia el chat visible.
+        &e/chatsentinel notify &7- &bActiva o desactiva notificaciones.
+        &e/chatsentinel spy &7- &bActiva o desactiva las alertas de espia.
+        &e/chatsentinel regex add <modulo> common|raw <texto> &7- &bAnade un filtro.
+        &e/servermute [on|off|toggle] [motivo] &7- &bSilencia o activa el chat.
+        &e/socialspy [modulo|status] &7- &bAdministra SocialSpy.
+        &e/autocorrect [on|off|toggle] &7- &bActiva o desactiva la autocorreccion.
+
+    spy:
+      enabled: "&aAlertas de espia activadas."
+      disabled: "&cAlertas de espia desactivadas."
+
+    chat:
+      clear: "&dEl chat fue limpiado por &f%player%&d. Motivo: &f%reason%"
+      clear_bypass: "&7El chat fue limpiado por &f%player%&7, pero lo ignoraste. Motivo: &f%reason%"
+      clear_summary: "&aLimpieza enviada a &f%cleared%&a jugadores; &f%bypassed%&a omitidos."
+      server_muted: "&c&lCS: &cEl chat esta silenciado."
+
+    cancel:
+      fallback: "&c&lCS: &cTu mensaje fue bloqueado por &f%module%&c."
+      blacklist: "&c&lCS: &cNo puedes escribir eso: &f%word%&c."
+      security: "&c&lCS: &cTu mensaje coincidio con una regla de seguridad."
+      advertisement: "&c&lCS: &cNo se permite publicidad: &f%word%&c."
+      offense: "&c&lCS: &cNo puedes escribir eso: &f%word%&c."
+      user: "&c&lCS: &cNo puedes escribir eso: &f%word%&c."
+      client: "&c&lCS: &cNo puedes escribir eso: &f%word%&c."
+      flood: "&c&lCS: &cNo hagas flood en el chat."
+      syntax: "&c&lCS: &cLa sintaxis esta deshabilitada en este servidor."
+      cooldown: "&c&lCS: &cEspera &f%cooldown% &csegundos antes de escribir."
+      similarity: "&c&lCS: &cDeja de repetir mensajes similares. Similitud: &f%similarity%"
+      capitalization: "&6&lCS: &eEvita el uso excesivo de mayusculas."
+      allowed_characters: "&c&lCS: &cTu mensaje contiene caracteres no permitidos."
+      no_move_chat: "&c&lCS: &cMuevete al menos &f%distance% &cbloques antes de escribir."
+      server_mute: "&c&lCS: &cEl chat esta silenciado."
+
+    server_mute:
+      enabled: "&dEl chat fue silenciado por &f%player%&d. Motivo: &f%reason%"
+      disabled: "&dEl chat fue activado por &f%player%&d. Motivo: &f%reason%"
+
+    correction:
+      enabled: "&aAutocorreccion activada."
+      disabled: "&cAutocorreccion desactivada."
+      usage: "&cUso: &f/autocorrect [on|off|toggle]"
+      console_only: "&cSolo los jugadores pueden cambiar la autocorreccion."
+      notice: "&7&lCS: &7Una de tus palabras fue corregida. Usa &e/autocorrect off &7para desactivarlo."
+
   pt-br:
-    cleared: "&dGame chat has been cleared by &f%player%&d. Reason: &f%reason%"
-    clear_bypass_notice: "&7Chat was cleared by &f%player%&7, but you bypassed clear. Reason: &f%reason%"
-    clear_sender_summary: "&aChat clear sent to %cleared% players; skipped %bypassed% bypass players."
-    reload: "&c&lCS: &aPlugin recarregado com sucesso!"
-    help: |-
-      &aComandos do ChatSentinel:
-      &e/chatsentinel help &7- &bMostra essa mensagem de ajuda!
-      &e/chatsentinel reload &7- &bRecarrega o plugin!
-    unknown_command: "&cComando desconhecido. Use /chatsentinel help para ver comandos disponíveis!"
-    no_permission: "&cVocê não tem permissão para executar este comando!"
-    blocked_message: "&c&lCS: &cVoce nao pode escrever isso: &f%word%&c. Se continuar, sera mutado automaticamente."
-    blacklist_warn_message: "&c&lCS: &cVoce nao pode escrever isso: &f%word%&c. Se continuar, sera mutado automaticamente."
-    security_warn_message: "&c&lCS: &cSua mensagem correspondeu a uma regra de segurança."
-    advertising_warn_message: "&c&lCS: &cPublicidade nao e permitida: &f%word%&c. Se continuar, sera mutado automaticamente."
-    offense_warn_message: "&c&lCS: &cVoce nao pode escrever isso: &f%word%&c. Se continuar, sera mutado automaticamente."
-    custom_warn_message: "&c&lCS: &cVoce nao pode escrever isso: &f%word%&c. Se continuar, sera mutado automaticamente."
-    capitalization_warn_message: "&6&lCS: &eEvite capitalizacao excessiva na sua mensagem."
-    cooldown_warn_message: "&c&lCS: &cEspere %cooldown% segundos antes de enviar sua proxima mensagem!"
-    flood_warn_message: "&c&lCS: &cVocê não pode enviar mensagens muito grandes!"
-    syntax_warn_message: "&c&lCS: &cA sintaxe está desativada neste servidor!"
-    filtered: "&c&lCS: &cSua mensagem foi filtrada pelo ChatSentinel! (Caracteres não permitidos)"
-    notify-enabled: "&aAs notificações do ChatSentinel agora estão ativadas!"
-    notify-disabled: "&cAs notificações do ChatSentinel agora estão desativadas!"
-    server_muted: "&c&lCS: &cO chat esta silenciado."
-    no_move_chat_warn_message: "&c&lCS: &cMova-se pelo menos %distance% blocos antes de escrever no chat."
-    server_mute_enabled: "&dO canal padrao foi silenciado por &f%player%&d. Motivo: &f%reason%"
-    server_mute_disabled: "&dO canal padrao foi ativado por &f%player%&d. Motivo: &f%reason%"
-    correction_warn_message: "&a&lCS: &7Uma das suas palavras foi corrigida. Use &e/autocorrect off &7para desativar isto."
-    correction_enabled: "&aAuto-correcao ativada."
-    correction_disabled: "&cAuto-correcao desativada."
-    correction_usage: "&cUso: /autocorrect [on|off|toggle]"
-    correction_console_only: "&cApenas jogadores podem ativar ou desativar a auto-correcao."
-    similarity_warn_message: "&c&lCS: &cPare de escrever mensagens semelhantes. Semelhanca: %similarity%"
-    cancellation_fallback: "&c&lCS: &cYour input was blocked by &f%module%&c."
+    general:
+      no_permission: "&cVoce nao tem permissao para usar este comando!"
+      unknown_command: "&cComando desconhecido. Use &f/chatsentinel help&c para ver os comandos."
+      reload: "&a&lCS: &aConfiguracao recarregada."
+      console_only: "&cApenas jogadores podem usar este recurso."
+      notify_enabled: "&aNotificacoes do ChatSentinel ativadas!"
+      notify_disabled: "&cNotificacoes do ChatSentinel desativadas!"
+      usage: "&cUso: &f%usage%"
+
+    help:
+      header: "&a&lChatSentinel &7comandos:"
+      lines: |-
+        &e/chatsentinel help &7- &bMostra esta mensagem de ajuda.
+        &e/chatsentinel reload &7- &bRecarrega configuracao, mensagens e filtros.
+        &e/chatsentinel status &7- &bMostra o estado dos modulos.
+        &e/chatsentinel module list|enable|disable|toggle <modulo> &7- &bGerencia modulos.
+        &e/chatsentinel clear [motivo] &7- &bLimpa o chat visivel.
+        &e/chatsentinel notify &7- &bAtiva ou desativa notificacoes.
+        &e/chatsentinel spy &7- &bAtiva ou desativa os alertas de espiao.
+        &e/chatsentinel regex add <modulo> common|raw <texto> &7- &bAdiciona um filtro.
+        &e/servermute [on|off|toggle] [motivo] &7- &bSilencia ou libera o chat.
+        &e/socialspy [modulo|status] &7- &bGerencia o SocialSpy.
+        &e/autocorrect [on|off|toggle] &7- &bAtiva ou desativa a autocorrecao.
+
+    spy:
+      enabled: "&aAlertas de espiao ativados."
+      disabled: "&cAlertas de espiao desativados."
+
+    chat:
+      clear: "&dO chat foi limpo por &f%player%&d. Motivo: &f%reason%"
+      clear_bypass: "&7O chat foi limpo por &f%player%&7, mas voce ignorou. Motivo: &f%reason%"
+      clear_summary: "&aLimpeza enviada para &f%cleared%&a jogadores; &f%bypassed%&a ignorados."
+      server_muted: "&c&lCS: &cO chat esta silenciado."
+
+    cancel:
+      fallback: "&c&lCS: &cSua mensagem foi bloqueada por &f%module%&c."
+      blacklist: "&c&lCS: &cVoce nao pode escrever isso: &f%word%&c."
+      security: "&c&lCS: &cSua mensagem correspondeu a uma regra de seguranca."
+      advertisement: "&c&lCS: &cPublicidade nao e permitida: &f%word%&c."
+      offense: "&c&lCS: &cVoce nao pode escrever isso: &f%word%&c."
+      user: "&c&lCS: &cVoce nao pode escrever isso: &f%word%&c."
+      client: "&c&lCS: &cVoce nao pode escrever isso: &f%word%&c."
+      flood: "&c&lCS: &cNao faca flood no chat."
+      syntax: "&c&lCS: &cA sintaxe esta desativada neste servidor."
+      cooldown: "&c&lCS: &cAguarde &f%cooldown% &csegundos antes de escrever."
+      similarity: "&c&lCS: &cPare de repetir mensagens parecidas. Semelhanca: &f%similarity%"
+      capitalization: "&6&lCS: &eEvite o uso excessivo de maiusculas."
+      allowed_characters: "&c&lCS: &cSua mensagem contem caracteres nao permitidos."
+      no_move_chat: "&c&lCS: &cMova-se pelo menos &f%distance% &cblocos antes de escrever."
+      server_mute: "&c&lCS: &cO chat esta silenciado."
+
+    server_mute:
+      enabled: "&dO chat foi silenciado por &f%player%&d. Motivo: &f%reason%"
+      disabled: "&dO chat foi liberado por &f%player%&d. Motivo: &f%reason%"
+
+    correction:
+      enabled: "&aAutocorrecao ativada."
+      disabled: "&cAutocorrecao desativada."
+      usage: "&cUso: &f/autocorrect [on|off|toggle]"
+      console_only: "&cApenas jogadores podem alterar a autocorrecao."
+      notice: "&7&lCS: &7Uma das suas palavras foi corrigida. Use &e/autocorrect off &7para desativar."

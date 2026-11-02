@@ -2,6 +2,7 @@ package dev._2lstudios.chatsentinel.shared;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -249,6 +250,85 @@ public class SharedUnitTest {
         module.loadData("en", locales);
 
         assertTrue(module.hasWarnMessage("en", "capitalization"));
+    }
+
+    @Test
+    public void messageDefaults_coverEveryShippedCancelKey() {
+        dev._2lstudios.chatsentinel.shared.modules.MessagesModule module =
+                new dev._2lstudios.chatsentinel.shared.modules.MessagesModule();
+        module.loadData("en", Collections.<String, Map<String, String>>emptyMap());
+
+        for (String moduleId : new String[] { "blacklist", "flood", "syntax", "cooldown", "similarity",
+                "capitalization", "allowed_characters", "no_move_chat", "advertisement", "offense", "user",
+                "client", "security", "server_mute" }) {
+            final String message = module.getWarnMessage(null, "en", moduleId);
+            assertTrue("missing built-in default for cancel." + moduleId,
+                    message != null && !message.trim().isEmpty());
+        }
+    }
+
+    @Test
+    public void getCancellationMessages_neverReturnNull_whenConfigIsEmpty() {
+        dev._2lstudios.chatsentinel.shared.modules.MessagesModule module =
+                new dev._2lstudios.chatsentinel.shared.modules.MessagesModule();
+        module.loadData("en", Collections.<String, Map<String, String>>emptyMap());
+
+        assertNotNull(module.getRequiredCancellationMessage(null, null, "en", "Flood"));
+        assertNotNull(module.getCancellationFallback(null, "en"));
+        assertNotNull(module.getBlockedMessage(null, "en"));
+        assertNotNull(module.getNoPermission("en"));
+        assertNotNull(module.getHelpLines("en"));
+    }
+
+    @Test
+    public void getRequiredCancellationMessage_prefersConfiguredModuleTextOverFallback() {
+        dev._2lstudios.chatsentinel.shared.modules.MessagesModule module =
+                new dev._2lstudios.chatsentinel.shared.modules.MessagesModule();
+        java.util.Map<String, Map<String, String>> locales = new java.util.HashMap<String, Map<String, String>>();
+        java.util.Map<String, String> en = new java.util.HashMap<String, String>();
+        en.put("cancel.fallback", "fallback");
+        en.put("cancel.flood", "flood text");
+        locales.put("en", en);
+        module.loadData("en", locales);
+
+        assertEquals("flood text",
+                module.getRequiredCancellationMessage(null, null, "en", "Flood"));
+    }
+
+    @Test
+    public void getRequiredCancellationMessage_fallsBackOnly_forUnmappedModule() {
+        dev._2lstudios.chatsentinel.shared.modules.MessagesModule module =
+                new dev._2lstudios.chatsentinel.shared.modules.MessagesModule();
+        java.util.Map<String, Map<String, String>> locales = new java.util.HashMap<String, Map<String, String>>();
+        java.util.Map<String, String> en = new java.util.HashMap<String, String>();
+        en.put("cancel.fallback", "fallback");
+        locales.put("en", en);
+        module.loadData("en", locales);
+
+        assertEquals("fallback",
+                module.getRequiredCancellationMessage(null, null, "en", "SomeUnknownModule"));
+    }
+
+    @Test
+    public void getRequiredCancellationMessage_prefersBuiltInDefaultOverFallback_forKnownModule() {
+        dev._2lstudios.chatsentinel.shared.modules.MessagesModule module =
+                new dev._2lstudios.chatsentinel.shared.modules.MessagesModule();
+        java.util.Map<String, Map<String, String>> locales = new java.util.HashMap<String, Map<String, String>>();
+        java.util.Map<String, String> en = new java.util.HashMap<String, String>();
+        en.put("cancel.fallback", "fallback");
+        locales.put("en", en);
+        module.loadData("en", locales);
+
+        assertTrue(module.getRequiredCancellationMessage(null, null, "en", "Flood").contains("flood"));
+    }
+
+    @Test
+    public void getRequiredCancellationMessage_prefersPlayerMessage_whenModuleSuppliesOne() {
+        dev._2lstudios.chatsentinel.shared.modules.MessagesModule module =
+                new dev._2lstudios.chatsentinel.shared.modules.MessagesModule();
+        module.loadData("en", Collections.<String, Map<String, String>>emptyMap());
+
+        assertEquals("explicit", module.getRequiredCancellationMessage("explicit", null, "en", "Flood"));
     }
 
     @Test

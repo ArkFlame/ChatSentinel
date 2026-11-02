@@ -81,11 +81,7 @@ public class BungeeModuleManager extends ModuleManager {
 			Configuration langSection = messagesYml.getSection("langs." + lang);
 			Map<String, String> messages = new HashMap<>();
 
-			for (String key : langSection.getKeys()) {
-				String value = langSection.getString(key);
-
-				messages.put(key, value);
-			}
+			flattenSection(langSection, "", messages);
 
 			locales.put(lang, messages);
 		}
@@ -187,6 +183,33 @@ public class BungeeModuleManager extends ModuleManager {
 				configYml.getString("discord-webhook.footer.text"),
 				configYml.getString("discord-webhook.footer.icon-url"),
 				configYml.getString("discord-webhook.thumbnail-url"));
+	}
+
+	private void flattenSection(final Configuration section, final String prefix, final Map<String, String> out) {
+		if (section == null) {
+			return;
+		}
+		for (String key : section.getKeys()) {
+			final String path = prefix.isEmpty() ? key : prefix + "." + key;
+			// getSection throws when the value is a scalar, so inspect the raw value first.
+			final Object value = section.get(key);
+			if (value instanceof Configuration) {
+				flattenSection((Configuration) value, path, out);
+				continue;
+			}
+			if (value instanceof Iterable<?>) {
+				final StringBuilder builder = new StringBuilder();
+				for (Object line : (Iterable<?>) value) {
+					if (builder.length() > 0) {
+						builder.append('\n');
+					}
+					builder.append(line == null ? "" : String.valueOf(line));
+				}
+				out.put(path, builder.toString());
+			} else if (value != null) {
+				out.put(path, String.valueOf(value));
+			}
+		}
 	}
 
 	private FilterModuleSettingsRegistry buildBlacklistSettingsRegistry(Configuration configYml) {

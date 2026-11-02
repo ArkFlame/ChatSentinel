@@ -163,25 +163,12 @@ public final class ChatSentinelCommandService {
             actor.sendMessage(moduleManager.getMessagesModule().getNoPermission(lang));
             return;
         }
-        actor.sendMessage("&aChatSentinel commands:");
-        sendHelpLine(actor, CommandPermission.HELP, "&e/chatsentinel help &7- &bShows this help message.");
-        sendHelpLine(actor, CommandPermission.RELOAD, "&e/chatsentinel reload &7- &bReloads config, messages, filters, and online-player cache.");
-        sendHelpLine(actor, CommandPermission.HELP, "&e/chatsentinel status &7- &bShows module and filter status.");
-        sendHelpLine(actor, CommandPermission.SELFTEST, "&e/chatsentinel selftest &7- &bTests command, player, and warning message delivery.");
-        sendHelpLine(actor, CommandPermission.CLEAR, "&e/chatsentinel clear [reason] &7- &bClears visible chat for non-bypass players.");
-        sendHelpLine(actor, CommandPermission.NOTIFY, "&e/chatsentinel notify &7- &bToggles moderation notifications.");
-        sendHelpLine(actor, moduleManager.getSpyModule().getPermission(), "&e/chatsentinel spy &7- &bToggles spy alerts.");
-        sendHelpLine(actor, CommandPermission.MODULE, "&e/chatsentinel module list|enable|disable|toggle <moduleId> &7- &bManages modules live.");
-        sendHelpLine(actor, CommandPermission.REGEX_ADD, "&e/chatsentinel regex add <moduleId> common|raw <text|regex> &7- &bAdds user blacklist regex.");
-        sendHelpLine(actor, CommandPermission.MUTE, "&e/servermute [on|off|toggle] [reason] &7- &bMutes or unmutes server chat.");
-        sendHelpLine(actor, CommandPermission.MUTE, "&e/chatsentinel mutechat [on|off|toggle] [reason] &7- &bSame as /servermute.");
-        sendHelpLine(actor, CommandPermission.SOCIALSPY, "&e/socialspy [module|status] &7- &bToggles SocialSpy modules.");
-        sendHelpLine(actor, CommandPermission.HELP, "&e/autocorrect [on|off|toggle] &7- &bToggles personal correction.");
-    }
-
-    private void sendHelpLine(final CommandActor actor, final String permission, final String line) {
-        if (hasPermission(actor, permission)) {
-            actor.sendMessage(line);
+        final MessagesModule messagesModule = moduleManager.getMessagesModule();
+        actor.sendMessage(messagesModule.getHelpHeader(lang));
+        for (String line : messagesModule.getHelpLines(lang).split("\\n")) {
+            if (!line.trim().isEmpty()) {
+                actor.sendMessage(line);
+            }
         }
     }
 
@@ -190,10 +177,11 @@ public final class ChatSentinelCommandService {
             actor.sendMessage(moduleManager.getMessagesModule().getNoPermission(lang));
             return;
         }
-        actor.sendMessage("&aChatSentinel status:");
-        actor.sendMessage("&7Platform: &f" + platform.getPlatformName());
-        actor.sendMessage("&7Filters: &f" + filterSummary());
-        actor.sendMessage(moduleList());
+        final MessagesModule messages = moduleManager.getMessagesModule();
+        actor.sendMessage(messages.getStatusHeader(lang));
+        actor.sendMessage(messages.getStatusPlatform(platform.getPlatformName(), lang));
+        actor.sendMessage(messages.getStatusFilters(filterSummary(lang), lang));
+        actor.sendMessage(messages.getModuleList(moduleList(), lang));
     }
 
     private void handleSelfTest(final CommandActor actor, final String lang) {
@@ -201,22 +189,23 @@ public final class ChatSentinelCommandService {
             actor.sendMessage(moduleManager.getMessagesModule().getNoPermission(lang));
             return;
         }
-        actor.sendMessage("&a&lCS: &7Command message delivery works. &eIf you can see this, command output is fixed.");
+        final MessagesModule messages = moduleManager.getMessagesModule();
+        actor.sendMessage(messages.getSelfTestCommand(lang));
         final ChatUser user = actor.asUserOrNull();
         if (user != null) {
-            user.sendMessage("&b&lCS: &7Player message delivery works. &eIf you can see this, player sendMessage is fixed.");
-            user.sendWarning("&6&lCS: &eWarning delivery works. &7This may also appear in actionbar depending config.", moduleManager.getWarningDeliverySettings());
+            user.sendMessage(messages.getSelfTestPlayer(lang));
+            user.sendWarning(messages.getSelfTestWarning(lang), moduleManager.getWarningDeliverySettings());
         }
     }
 
-    private String filterSummary() {
+    private String filterSummary(final String lang) {
+        final MessagesModule messages = moduleManager.getMessagesModule();
         if (moduleManager.getLastCompileReport() == null) {
-            return "not compiled";
+            return messages.getFiltersNotCompiled(lang);
         }
-        FilterCompileReport report = moduleManager.getLastCompileReport();
-        return report.getFilesCompiled() + " files, "
-                + report.getExpressionsTotal() + " expressions, "
-                + report.getErrors().size() + " errors";
+        final FilterCompileReport report = moduleManager.getLastCompileReport();
+        return messages.getFiltersSummary(String.valueOf(report.getFilesCompiled()),
+                String.valueOf(report.getExpressionsTotal()), String.valueOf(report.getErrors().size()), lang);
     }
 
     private void handleReload(final CommandActor actor, final String lang) {
@@ -281,12 +270,14 @@ public final class ChatSentinelCommandService {
         }
         final ChatUser user = actor.asUserOrNull();
         if (user == null) {
-            actor.sendMessage("Only players can use spy.");
+            actor.sendMessage(moduleManager.getMessagesModule().getConsoleOnly(lang));
             return;
         }
         final ChatPlayer chatPlayer = chatPlayerManager.getPlayer(user);
         chatPlayer.setSpy(!chatPlayer.isSpy());
-        actor.sendMessage("Spy " + (chatPlayer.isSpy() ? "enabled" : "disabled") + ".");
+        actor.sendMessage(chatPlayer.isSpy()
+                ? moduleManager.getMessagesModule().getSpyEnabled(lang)
+                : moduleManager.getMessagesModule().getSpyDisabled(lang));
     }
 
     private void handleModule(final CommandActor actor, final String[] args, final String lang) {
@@ -301,7 +292,7 @@ public final class ChatSentinelCommandService {
         if (args.length == 3 && "toggle".equalsIgnoreCase(args[1])) {
             final String path = modulePath(args[2]);
             if (path == null) {
-                actor.sendMessage("Unknown module: " + args[2]);
+                actor.sendMessage(moduleManager.getMessagesModule().getUnknownModule(args[2], lang));
                 return;
             }
             final boolean currentlyEnabled = isModuleEnabled(args[2]);
@@ -310,9 +301,9 @@ public final class ChatSentinelCommandService {
                 configStore.setBoolean(path, newEnabled);
                 moduleManager.reloadData(createStatus(actor));
                 platform.refreshOnlinePlayers(chatPlayerManager, chatNotificationManager, moduleManager.getGeneralModule());
-                actor.sendMessage("Module " + args[2].toLowerCase() + " " + (newEnabled ? "enabled" : "disabled") + ".");
+                actor.sendMessage(moduleManager.getMessagesModule().getModuleState(args[2], newEnabled, lang));
             } catch (IOException exception) {
-                actor.sendMessage("Module save failed: " + exception.getMessage());
+                actor.sendMessage(moduleManager.getMessagesModule().getSaveFailed(lang));
             }
             return;
         }
@@ -320,19 +311,20 @@ public final class ChatSentinelCommandService {
             final boolean enabled = "enable".equalsIgnoreCase(args[1]);
             final String path = modulePath(args[2]);
             if (path == null) {
-                actor.sendMessage("Unknown module: " + args[2]);
+                actor.sendMessage(moduleManager.getMessagesModule().getUnknownModule(args[2], lang));
                 return;
             }
             try {
                 configStore.setBoolean(path, enabled);
                 moduleManager.reloadData(createStatus(actor));
-                actor.sendMessage("Module " + args[2].toLowerCase() + " " + (enabled ? "enabled" : "disabled") + ".");
+                actor.sendMessage(moduleManager.getMessagesModule().getModuleState(args[2], enabled, lang));
             } catch (IOException exception) {
-                actor.sendMessage("Module save failed: " + exception.getMessage());
+                actor.sendMessage(moduleManager.getMessagesModule().getSaveFailed(lang));
             }
             return;
         }
-        actor.sendMessage("Usage: /chatsentinel module list|enable|disable|toggle <moduleId>");
+        actor.sendMessage(moduleManager.getMessagesModule().getUsage(
+                "/chatsentinel module list|enable|disable|toggle <module>", lang));
     }
 
     private boolean isModuleEnabled(final String moduleId) {
@@ -360,8 +352,9 @@ public final class ChatSentinelCommandService {
             actor.sendMessage(moduleManager.getMessagesModule().getNoPermission(lang));
             return;
         }
+        final MessagesModule messages = moduleManager.getMessagesModule();
         if (args.length < 5 || !"add".equalsIgnoreCase(args[1])) {
-            actor.sendMessage("Usage: /chatsentinel regex add <moduleId> common <plain...>|raw <regex...>");
+            actor.sendMessage(messages.getRegexUsage(lang));
             return;
         }
         try {
@@ -369,14 +362,14 @@ public final class ChatSentinelCommandService {
                     ? regexAddService.addCommon(args[2], joinArgs(args, 4))
                     : "raw".equalsIgnoreCase(args[3]) ? regexAddService.addRaw(args[2], joinArgs(args, 4)) : null;
             if (expression == null) {
-                actor.sendMessage("Usage: /chatsentinel regex add <moduleId> common <plain...>|raw <regex...>");
+                actor.sendMessage(messages.getRegexUsage(lang));
                 return;
             }
             moduleManager.reloadData(createStatus(actor));
             sendCompileErrors(actor, moduleManager.getLastCompileReport());
-            actor.sendMessage("Added regex to module " + args[2] + ": " + expression);
+            actor.sendMessage(messages.getRegexAdded(args[2], expression, lang));
         } catch (IllegalArgumentException | IOException exception) {
-            actor.sendMessage("Regex add failed: " + exception.getMessage());
+            actor.sendMessage(messages.getRegexFailed(exception.getMessage(), lang));
         }
     }
 
@@ -396,11 +389,14 @@ public final class ChatSentinelCommandService {
         } else if ("toggle".equals(mode)) {
             muted = !moduleManager.getServerMuteModule().isMuted();
         } else {
-            actor.sendMessage("Usage: " + usageCommand + " [on|off|toggle] [reason...]");
+            actor.sendMessage(moduleManager.getMessagesModule().getUsage(
+                    usageCommand + " [on|off|toggle] [reason...]", lang));
             return;
         }
 
-        final String reason = args.length > modeIndex + 1 ? joinArgs(args, modeIndex + 1) : "No reason specified";
+        final String reason = args.length > modeIndex + 1
+                ? joinArgs(args, modeIndex + 1)
+                : moduleManager.getMessagesModule().getNoReason(lang);
         try {
             configStore.setBoolean("server-mute.muted", muted);
             moduleManager.getServerMuteModule().setMuted(muted);
@@ -413,7 +409,7 @@ public final class ChatSentinelCommandService {
                     : moduleManager.getMessagesModule().getServerMuteDisabled(placeholders, lang);
             broadcastServerMuteChange(actor, message);
         } catch (IOException exception) {
-            actor.sendMessage("Server mute save failed: " + exception.getMessage());
+            actor.sendMessage(moduleManager.getMessagesModule().getSaveFailed(lang));
         }
     }
 
@@ -479,7 +475,7 @@ public final class ChatSentinelCommandService {
     }
 
     private String moduleList() {
-        final StringBuilder builder = new StringBuilder("Modules:");
+        final StringBuilder builder = new StringBuilder();
         appendModule(builder, "blacklist", moduleManager.getBlacklistModule().isEnabled());
         appendModule(builder, "capitalization", moduleManager.getCapitalizationModule().isEnabled());
         appendModule(builder, "cooldown", moduleManager.getCooldownModule().isEnabled());
@@ -487,23 +483,30 @@ public final class ChatSentinelCommandService {
         appendModule(builder, "syntax", moduleManager.getSyntaxModule().isEnabled());
         appendModule(builder, "whitelist", moduleManager.getWhitelistModule().isEnabled());
         appendModule(builder, "correction", moduleManager.getCorrectionModule().isEnabled());
-        builder.append("\n- server-mute: ")
-                .append(moduleManager.getServerMuteModule().isEnabled() ? "enabled" : "disabled")
-                .append(", state=")
-                .append(moduleManager.getServerMuteModule().isMuted() ? "muted" : "open");
+        appendEntry(builder, "server-mute",
+                (moduleManager.getServerMuteModule().isEnabled() ? "enabled" : "disabled")
+                        + ", state=" + (moduleManager.getServerMuteModule().isMuted() ? "muted" : "open"));
         final Set<String> moduleIds = moduleManager.getBlacklistModule().getSettingsRegistry().moduleIds();
         final List<String> sortedIds = new ArrayList<String>(moduleIds);
         Collections.sort(sortedIds);
         for (String moduleId : sortedIds) {
             if (!"default".equals(moduleId)) {
-                appendModule(builder, "blacklist/" + moduleId, moduleManager.getBlacklistModule().getSettingsRegistry().resolve(moduleId).isEnabled());
+                appendModule(builder, "blacklist/" + moduleId,
+                        moduleManager.getBlacklistModule().getSettingsRegistry().resolve(moduleId).isEnabled());
             }
         }
         return builder.toString();
     }
 
     private void appendModule(final StringBuilder builder, final String moduleId, final boolean enabled) {
-        builder.append("\n- ").append(moduleId).append(": ").append(enabled ? "enabled" : "disabled");
+        appendEntry(builder, moduleId, enabled ? "enabled" : "disabled");
+    }
+
+    private void appendEntry(final StringBuilder builder, final String moduleId, final String state) {
+        if (builder.length() > 0) {
+            builder.append('\n');
+        }
+        builder.append("- ").append(moduleId).append(": ").append(state);
     }
 
     private String[][] placeholders(final String player, final String reason, final String cleared, final String bypassed, final String id) {
@@ -527,7 +530,7 @@ public final class ChatSentinelCommandService {
     private void handleSocialSpy(final CommandActor actor, final String[] args, final String lang, final int moduleIndex) {
         final ChatUser user = actor.asUserOrNull();
         if (user == null) {
-            actor.sendMessage("Only players can use SocialSpy.");
+            actor.sendMessage(moduleManager.getMessagesModule().getSocialSpyConsoleOnly(lang));
             return;
         }
         if (!socialSpyService.hasAnyPermission(user)) {
@@ -547,7 +550,7 @@ public final class ChatSentinelCommandService {
             return;
         }
         if (!SocialSpyModuleId.isValid(requested)) {
-            actor.sendMessage(moduleManager.getSocialSpyModule().getInvalidModuleMessage(String.join(", ", SocialSpyModuleId.ids())));
+            actor.sendMessage(moduleManager.getMessagesModule().getSocialSpyUsage(lang));
             return;
         }
         final String moduleId = SocialSpyModuleId.normalize(requested);

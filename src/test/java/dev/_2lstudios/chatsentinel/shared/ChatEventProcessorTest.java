@@ -301,6 +301,23 @@ public class ChatEventProcessorTest {
     }
 
     @Test
+    public void process_doesNotChargeWarn_whenAllowedCharactersRewrites() {
+        TestModuleManager modules = modules();
+        modules.getAllowedCharactersModule().loadData(true,
+                AllowedCharactersModule.DEFAULT_MODE, "[A-Za-z ]+", "");
+        FakeUser user = new FakeUser(UUID.randomUUID(), "Steve");
+        ChatPlayerManager players = new ChatPlayerManager();
+        ChatPlayer chatPlayer = players.getPlayer(user);
+        ChatEventProcessor processor = processor(modules,
+                new FakePlatform("Bukkit", Collections.singletonList(user)), players);
+
+        ChatModerationDecision result = processor.process(user, "hel\u00adlo", true);
+
+        assertFalse(result.getAction().isTerminal());
+        assertEquals(0, chatPlayer.getWarns("allowedcharacters"));
+    }
+
+    @Test
     public void process_skipsCapitalization_whenGlobalBypassPresent() {
         TestModuleManager modules = modules();
         modules.getGeneralModule().loadData(false, false, false, Collections.<String>emptyList(), "chatsentinel.bypass",
@@ -516,10 +533,70 @@ public class ChatEventProcessorTest {
         return new ChatEventProcessor(modules, players, new ChatNotificationManager(), platform, new LocalAlertBus());
     }
 
+    @Test
+    public void process_showsFloodSpecificMessage_whenFloodCancelsWithoutOwnText() {
+        TestModuleManager modules = modules();
+        modules.getFloodModule().loadData(true, "Flood", false, 0, "(.)\\1{60,}", "", false, new String[0]);
+        FakeUser user = new FakeUser(UUID.randomUUID(), "Steve");
+        ChatEventProcessor processor = processor(modules,
+                new FakePlatform("BungeeCord", Collections.singletonList(user)), new ChatPlayerManager());
+
+        ChatModerationDecision result = processor.process(user, repeat("a", 80), true);
+
+        assertTrue(result.getAction().isTerminal());
+        assertEquals("flood", result.getReasonId().get());
+        assertTrue(result.getPlayerFeedback().get().contains("Please do not flood the chat."));
+    }
+
+    @Test
+    public void process_floodWarnMessageOverridesBuiltInDefault() {
+        TestModuleManager modules = modules();
+        Map<String, Map<String, String>> locales = new HashMap<String, Map<String, String>>();
+        Map<String, String> en = new HashMap<String, String>();
+        en.put("cancel.flood", "custom flood text");
+        locales.put("en", en);
+        modules.getMessagesModule().loadData("en", locales);
+        modules.getFloodModule().loadData(true, "Flood", false, 0, "(.)\\1{60,}", "", false, new String[0]);
+        FakeUser user = new FakeUser(UUID.randomUUID(), "Steve");
+        ChatEventProcessor processor = processor(modules,
+                new FakePlatform("BungeeCord", Collections.singletonList(user)), new ChatPlayerManager());
+
+        ChatModerationDecision result = processor.process(user, repeat("a", 80), true);
+
+        assertEquals("custom flood text", result.getPlayerFeedback().get());
+    }
+
+    @Test
+    public void process_usesLegacyFloodWarnMessage_whenCancelDomainAbsent() {
+        TestModuleManager modules = modules();
+        Map<String, Map<String, String>> locales = new HashMap<String, Map<String, String>>();
+        Map<String, String> en = new HashMap<String, String>();
+        en.put("flood_warn_message", "legacy flood text");
+        locales.put("en", en);
+        modules.getMessagesModule().loadData("en", locales);
+        modules.getFloodModule().loadData(true, "Flood", false, 0, "(.)\\1{60,}", "", false, new String[0]);
+        FakeUser user = new FakeUser(UUID.randomUUID(), "Steve");
+        ChatEventProcessor processor = processor(modules,
+                new FakePlatform("BungeeCord", Collections.singletonList(user)), new ChatPlayerManager());
+
+        ChatModerationDecision result = processor.process(user, repeat("a", 80), true);
+
+        assertEquals("legacy flood text", result.getPlayerFeedback().get());
+    }
+
+    private String repeat(final String value, final int count) {
+        final StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            builder.append(value);
+        }
+        return builder.toString();
+    }
+
     private static TestModuleManager modules() {
         TestModuleManager manager = new TestModuleManager();
         Map<String, Map<String, String>> locales = new HashMap<String, Map<String, String>>();
         Map<String, String> en = new HashMap<String, String>();
+        en.put("cancellation_fallback", "fallback");
         en.put("blocked_message", "blocked");
         en.put("server_muted", "muted");
         en.put("no_move_chat_warn_message", "move first");

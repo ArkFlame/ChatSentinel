@@ -8,6 +8,8 @@ import dev._2lstudios.chatsentinel.shared.moderation.ModerationIdentity;
 import dev._2lstudios.chatsentinel.shared.moderation.ModerationViolation;
 import dev._2lstudios.chatsentinel.shared.modules.AllowedCharactersModule;
 import dev._2lstudios.chatsentinel.shared.modules.CooldownModerationModule;
+import dev._2lstudios.chatsentinel.shared.modules.CorrectionModule;
+import dev._2lstudios.chatsentinel.shared.modules.CorrectionResult;
 import dev._2lstudios.chatsentinel.shared.modules.DiscordWebhookModule;
 import dev._2lstudios.chatsentinel.shared.modules.GeneralModule;
 import dev._2lstudios.chatsentinel.shared.modules.MessagesModule;
@@ -17,8 +19,6 @@ import dev._2lstudios.chatsentinel.shared.modules.NoMoveChatModule;
 import dev._2lstudios.chatsentinel.shared.modules.ServerMuteModule;
 import dev._2lstudios.chatsentinel.shared.modules.SpyModule;
 import dev._2lstudios.chatsentinel.shared.modules.SyntaxModerationModule;
-import dev._2lstudios.chatsentinel.shared.modules.CorrectionModule;
-import dev._2lstudios.chatsentinel.shared.modules.CorrectionResult;
 import dev._2lstudios.chatsentinel.shared.platform.ChatPlatform;
 import dev._2lstudios.chatsentinel.shared.platform.ChatUser;
 import dev._2lstudios.chatsentinel.shared.utils.PlaceholderUtil;
@@ -80,17 +80,17 @@ public final class ChatEventProcessor {
             }
         }
 
-        final String correctedMessage = applyCorrection(chatPlayer, user, originalMessage, enforce, isCommand, isNormalCommand, lang);
-
+        final String correctedMessage = applyCorrection(chatPlayer, user, originalMessage, enforce, isCommand,
+                isNormalCommand, lang);
         String finalMessage = correctedMessage;
-        boolean wasRewritten = !correctedMessage.equals(originalMessage);
 
         for (ModerationModule moderationModule : moderationModulesToProcess) {
             if (shouldSkipModule(moderationModule, user, isCommand, isNormalCommand)) {
                 continue;
             }
 
-            final ChatEventResult result = moderationModule.processEvent(chatPlayer, messagesModule, playerName, finalMessage, lang);
+            final ChatEventResult result = moderationModule.processEvent(chatPlayer, messagesModule, playerName,
+                    finalMessage, lang);
             if (result == null) {
                 continue;
             }
@@ -101,54 +101,40 @@ public final class ChatEventProcessor {
             }
 
             final boolean isTerminal = result.getAction().isTerminal();
+            final ViolationData data = resolveViolationData(moderationModule, result);
+
+            // A character rewrite from allowed-characters is a correction, not an offence:
+            // charging a warn here would punish players for a benign fix.
+            if (moderationModule instanceof AllowedCharactersModule && !isTerminal) {
+                dispatchSpy(user, placeholders(user, chatPlayer, moderationModule, originalMessage, data.identityKey,
+                        data.customModuleName, data.maxWarns, data.sourceFile, data.sourceModule, data.matchedText,
+                        result.getMessage()));
+                finalMessage = result.getMessage();
+                continue;
+            }
 
             if (!result.isNotify()) {
                 finalMessage = result.getMessage();
                 if (isTerminal) {
-                    final ViolationData data = resolveViolationData(moderationModule, result);
                     handleViolation(user, chatPlayer, moderationModule, originalMessage, finalMessage, result, data);
-                    final String feedback = resolvePreferredTerminalMessage(result, data, lang);
-                    final String reasonId = data.identityKey;
-                    final String reasonName = data.customModuleName != null ? data.customModuleName : moderationModule.getName();
-                    return createTerminalDecision(result, moderationModule, feedback, lang);
+                    return createTerminalDecision(result, moderationModule,
+                            resolvePreferredTerminalMessage(result, data, lang), lang);
                 }
                 continue;
             }
 
-            if (moderationModule instanceof AllowedCharactersModule) {
-                dispatchSpy(user, placeholders(user, chatPlayer, moderationModule, originalMessage,
-                        moderationModule.getIdentityKey(), moderationModule.getCustomName(), moderationModule.getMaxWarns(),
-                        "", moderationModule.getName(), "", result.getMessage()));
-                finalMessage = result.getMessage();
-                if (isTerminal) {
-                    final ViolationData data = resolveViolationData(moderationModule, result);
-                    handleViolation(user, chatPlayer, moderationModule, originalMessage, finalMessage, result, data);
-                    final String feedback = messagesModule.getFiltered(lang);
-                    return createTerminalDecision(result, moderationModule, feedback, lang);
-                }
-                continue;
-            }
-
-            final ViolationData data = resolveViolationData(moderationModule, result);
             handleViolation(user, chatPlayer, moderationModule, originalMessage, finalMessage, result, data);
             finalMessage = result.getMessage();
             if (isTerminal) {
-                final String feedback = resolvePreferredTerminalMessage(result, data, lang);
-                final String reasonId = data.identityKey;
-                final String reasonName = data.customModuleName != null ? data.customModuleName : moderationModule.getName();
-                return createTerminalDecision(result, moderationModule, feedback, lang);
+                return createTerminalDecision(result, moderationModule,
+                        resolvePreferredTerminalMessage(result, data, lang), lang);
             }
         }
 
         if (finalMessage.equals(originalMessage)) {
             return ChatModerationDecision.pass(originalMessage);
-        } else {
-            return ChatModerationDecision.rewrite(finalMessage);
         }
-    }
-
-    private boolean isTerminalCancellation(final ChatEventResult result) {
-        return result != null && result.getAction().isTerminal();
+        return ChatModerationDecision.rewrite(finalMessage);
     }
 
     private Optional<ChatModerationDecision> processServerMute(final ChatUser user, final ChatPlayer chatPlayer,
@@ -161,12 +147,13 @@ public final class ChatEventProcessor {
         if (hasModuleBypass(user, "server-mute", serverMuteModule.getBypassPermission())) {
             return Optional.empty();
         }
-        final ChatEventResult serverMuteResult = serverMuteModule.processEvent(chatPlayer, messagesModule, playerName, originalMessage, lang);
+        final ChatEventResult serverMuteResult = serverMuteModule.processEvent(chatPlayer, messagesModule, playerName,
+                originalMessage, lang);
         if (serverMuteResult == null) {
             return Optional.empty();
         }
-        final String feedback = serverMuteResult.getMessage();
-        return Optional.of(ChatModerationDecision.block(originalMessage, feedback, "server-mute", "Server Mute"));
+        return Optional.of(ChatModerationDecision.block(originalMessage, serverMuteResult.getMessage(),
+                "server-mute", "Server Mute"));
     }
 
     private Optional<ChatModerationDecision> processNoMoveGate(final ChatUser user, final ChatPlayer chatPlayer,
@@ -201,36 +188,16 @@ public final class ChatEventProcessor {
                 continue;
             }
 
-            final ChatEventResult result = moderationModule.processEvent(chatPlayer, messagesModule, playerName, originalMessage, lang);
-            if (result == null || !isTerminalCancellation(result)) {
+            final ChatEventResult result = moderationModule.processEvent(chatPlayer, messagesModule, playerName,
+                    originalMessage, lang);
+            if (result == null || !result.getAction().isTerminal()) {
                 continue;
             }
 
             final ViolationData data = resolveViolationData(moderationModule, result);
-
-            if (!result.isNotify()) {
-                handleViolation(user, chatPlayer, moderationModule, originalMessage, originalMessage, result, data);
-            } else if (moderationModule instanceof AllowedCharactersModule) {
-                handleViolation(user, chatPlayer, moderationModule, originalMessage, originalMessage, result, data);
-            } else {
-                handleViolation(user, chatPlayer, moderationModule, originalMessage, originalMessage, result, data);
-            }
-
-            final String feedback;
-            final String reasonId;
-            final String reasonName;
-
-            if (moderationModule instanceof AllowedCharactersModule) {
-                feedback = messagesModule.getFiltered(lang);
-                reasonId = moderationModule.getIdentityKey();
-                reasonName = moderationModule.getCustomName() != null ? moderationModule.getCustomName() : moderationModule.getName();
-            } else {
-                feedback = resolvePreferredTerminalMessage(result, data, lang);
-                reasonId = data.identityKey;
-                reasonName = data.customModuleName != null ? data.customModuleName : moderationModule.getName();
-            }
-
-            return Optional.of(createTerminalDecision(result, moderationModule, feedback, lang));
+            handleViolation(user, chatPlayer, moderationModule, originalMessage, originalMessage, result, data);
+            return Optional.of(createTerminalDecision(result, moderationModule,
+                    resolvePreferredTerminalMessage(result, data, lang), lang));
         }
         return Optional.empty();
     }
@@ -246,6 +213,13 @@ public final class ChatEventProcessor {
         return ChatModerationDecision.block(result.getMessage(), message, reasonId, reasonName);
     }
 
+    /**
+     * Player feedback for a cancelled message.
+     *
+     * <p>Allowed-characters always reports its own filtered text. Everything else prefers the
+     * module's own player message, then its configured {@code cancel.<module>} text, and finally
+     * the shared {@code cancel.fallback}.</p>
+     */
     private String resolvePreferredTerminalMessage(final ChatEventResult result, final ViolationData data,
             final String lang) {
         final MessagesModule messagesModule = moduleManager.getMessagesModule();
@@ -254,10 +228,8 @@ public final class ChatEventProcessor {
         }
         final String[][] placeholders = placeholders(null, null, null, "", data.identityKey,
                 data.customModuleName, data.maxWarns, data.sourceFile, data.sourceModule, data.matchedText, "");
-        if (data.violation != null && messagesModule.hasWarnMessage(lang, data.sourceModuleId)) {
-            return messagesModule.getWarnMessage(placeholders, lang, data.sourceModuleId);
-        }
-        return messagesModule.getRequiredCancellationMessage(null, placeholders, lang);
+        final String module = data.sourceModuleId != null ? data.sourceModuleId : data.sourceModule;
+        return messagesModule.getRequiredCancellationMessage(null, placeholders, lang, module);
     }
 
     private String applyCorrection(final ChatPlayer chatPlayer, final ChatUser user, final String originalMessage,
@@ -317,16 +289,16 @@ public final class ChatEventProcessor {
         return user.hasPermission(globalBypassPermission) && !generalModule.isGlobalBypassExcluded(moduleId);
     }
 
-    private ViolationData handleViolation(final ChatUser user, final ChatPlayer chatPlayer,
+    private void handleViolation(final ChatUser user, final ChatPlayer chatPlayer,
             final ModerationModule moderationModule, final String originalMessage, final String message,
             final ChatEventResult result, final ViolationData data) {
         chatPlayer.addWarn(data.identityKey);
 
         final String[][] placeholders = placeholders(user, chatPlayer, moderationModule, message, data.identityKey,
                 data.customModuleName, data.maxWarns, data.sourceFile, data.sourceModule, data.matchedText, result.getMessage());
-        final String warnMessage = moduleManager.getMessagesModule().getWarnMessage(placeholders, chatPlayer.getLocale(), moderationModule.getName());
-        final boolean isTerminal = result.getAction().isTerminal();
-        if (!isTerminal && warnMessage != null && !warnMessage.isEmpty()) {
+        final String warnMessage = moduleManager.getMessagesModule().getWarnMessage(placeholders,
+                chatPlayer.getLocale(), moderationModule.getName());
+        if (!result.getAction().isTerminal() && warnMessage != null && !warnMessage.isEmpty()) {
             user.sendWarning(warnMessage, moduleManager.getWarningDeliverySettings());
         }
 
@@ -341,8 +313,9 @@ public final class ChatEventProcessor {
         final String notificationMessage = data.violation != null
                 ? dispatchNotification(data.violation.getActionSettings().getWarnNotification(), placeholders)
                 : dispatchNotification(moderationModule.getWarnNotification(placeholders));
-        final String spyMessage = dispatchSpy(user, placeholders(user, chatPlayer, moderationModule, originalMessage, data.identityKey,
-                data.customModuleName, data.maxWarns, data.sourceFile, data.sourceModule, data.matchedText, result.getMessage()));
+        final String spyMessage = dispatchSpy(user, placeholders(user, chatPlayer, moderationModule, originalMessage,
+                data.identityKey, data.customModuleName, data.maxWarns, data.sourceFile, data.sourceModule,
+                data.matchedText, result.getMessage()));
         alertBus.publish(new AlertPayload(null, notificationMessage, spyMessage));
 
         final DiscordWebhookModule discordWebhookModule = moduleManager.getDiscordWebhookModule();
@@ -354,19 +327,20 @@ public final class ChatEventProcessor {
                 }
             });
         }
-        return data;
     }
 
-    private void dispatchWarnOnly(final ChatUser user, final ChatPlayer chatPlayer, final ModerationModule moderationModule,
-            final String originalMessage, final String message, final ChatEventResult result) {
+    private void dispatchWarnOnly(final ChatUser user, final ChatPlayer chatPlayer,
+            final ModerationModule moderationModule, final String originalMessage, final String message,
+            final ChatEventResult result) {
         final ViolationData data = resolveViolationData(moderationModule, result);
         final String[][] placeholders = placeholders(user, chatPlayer, moderationModule, message, data.identityKey,
                 data.customModuleName, data.maxWarns, data.sourceFile, data.sourceModule, data.matchedText, result.getMessage());
         final String notificationMessage = data.violation != null
                 ? dispatchNotification(data.violation.getActionSettings().getWarnNotification(), placeholders)
                 : dispatchNotification(moderationModule.getWarnNotification(placeholders));
-        final String spyMessage = dispatchSpy(user, placeholders(user, chatPlayer, moderationModule, originalMessage, data.identityKey,
-                data.customModuleName, data.maxWarns, data.sourceFile, data.sourceModule, data.matchedText, result.getMessage()));
+        final String spyMessage = dispatchSpy(user, placeholders(user, chatPlayer, moderationModule, originalMessage,
+                data.identityKey, data.customModuleName, data.maxWarns, data.sourceFile, data.sourceModule,
+                data.matchedText, result.getMessage()));
         alertBus.publish(new AlertPayload(null, notificationMessage, spyMessage));
 
         final boolean webhookEnabled = data.violation != null
@@ -457,19 +431,30 @@ public final class ChatEventProcessor {
     }
 
     private void dispatchCommands(final String[] commands, final String[][] placeholders) {
+        if (commands == null) {
+            return;
+        }
         for (String command : commands) {
             platform.dispatchConsoleCommand(PlaceholderUtil.replacePlaceholders(command, placeholders));
         }
     }
 
-    private String[][] placeholders(final ChatUser user, final ChatPlayer chatPlayer, final ModerationModule moderationModule,
-            final String message, final String identityKey, final String customModuleName, final int maxWarns,
-            final String sourceFile, final String sourceModule, final String matchedText, final String resultMessage) {
-        final float remainingTime = chatPlayer == null ? 0.0F : moduleManager.getCooldownModule().getRemainingTime(chatPlayer, message);
+    private String[][] placeholders(final ChatUser user, final ChatPlayer chatPlayer,
+            final ModerationModule moderationModule, final String message, final String identityKey,
+            final String customModuleName, final int maxWarns, final String sourceFile, final String sourceModule,
+            final String matchedText, final String resultMessage) {
+        final float remainingTime = chatPlayer == null ? 0.0F
+                : moduleManager.getCooldownModule().getRemainingTime(chatPlayer, message);
         final String safeMatchedText = matchedText == null ? "" : matchedText;
         return new String[][] {
-                { "%player%", "%module%", "%message%", "%warns%", "%maxwarns%", "%cooldown%", "%server_name%", "%module_id%", "%source_file%", "%source_module%", "%matched_text%", "%word%", "%result_message%" },
-                { user == null ? "" : user.getName(), customModuleName == null ? "" : customModuleName, message == null ? "" : message, chatPlayer == null ? "0" : String.valueOf(chatPlayer.getWarns(identityKey)), String.valueOf(maxWarns), String.valueOf(remainingTime), user == null ? "" : user.getServerName(), identityKey == null ? "" : identityKey, sourceFile == null ? "" : sourceFile, sourceModule == null ? "" : sourceModule, safeMatchedText, safeMatchedText, resultMessage == null ? "" : resultMessage }
+                { "%player%", "%module%", "%message%", "%warns%", "%maxwarns%", "%cooldown%", "%server_name%",
+                        "%module_id%", "%source_file%", "%source_module%", "%matched_text%", "%word%", "%result_message%" },
+                { user == null ? "" : user.getName(), customModuleName == null ? "" : customModuleName,
+                        message == null ? "" : message, chatPlayer == null ? "0" : String.valueOf(chatPlayer.getWarns(identityKey)),
+                        String.valueOf(maxWarns), String.valueOf(remainingTime), user == null ? "" : user.getServerName(),
+                        identityKey == null ? "" : identityKey, sourceFile == null ? "" : sourceFile,
+                        sourceModule == null ? "" : sourceModule, safeMatchedText, safeMatchedText,
+                        resultMessage == null ? "" : resultMessage }
         };
     }
 

@@ -65,11 +65,7 @@ public class VelocityModuleManager extends ModuleManager {
 			ConfigurationNode langSection = messagesYml.node("langs", lang);
 			Map<String, String> messages = new HashMap<>();
 
-			for (Object key : langSection.childrenMap().keySet()) {
-				String value = langSection.node(key).getString();
-
-				messages.put((String) key, value);
-			}
+			flattenNode(langSection, "", messages);
 
 			locales.put((String) lang, messages);
 		}
@@ -263,6 +259,32 @@ public class VelocityModuleManager extends ModuleManager {
 			signedChatPolicy = SIGNED_CHAT_POLICY_LEGACY_DENY;
 		}
 		signedChatWarningOnStartup = configYml.node("velocity", "signed-chat-warning-on-startup").getBoolean(true);
+	}
+
+	private void flattenNode(final ConfigurationNode node, final String prefix, final Map<String, String> out) {
+		if (node == null || node.virtual()) {
+			return;
+		}
+		for (Map.Entry<Object, ? extends ConfigurationNode> entry : node.childrenMap().entrySet()) {
+			final String path = prefix.isEmpty() ? String.valueOf(entry.getKey()) : prefix + "." + entry.getKey();
+			final ConfigurationNode child = entry.getValue();
+			if (child.isMap()) {
+				flattenNode(child, path, out);
+				continue;
+			}
+			if (child.isList()) {
+				final StringBuilder builder = new StringBuilder();
+				for (ConfigurationNode line : child.childrenList()) {
+					if (builder.length() > 0) {
+						builder.append('\n');
+					}
+					builder.append(line.getString(""));
+				}
+				out.put(path, builder.toString());
+			} else {
+				out.put(path, child.getString(""));
+			}
+		}
 	}
 
 	private Map<String, FilterModuleSettings> buildBlacklistSettings(CommentedConfigurationNode configYml,
