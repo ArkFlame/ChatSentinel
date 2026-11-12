@@ -175,6 +175,43 @@ general:
     - /er
     - /global
     - /g
+    - /message
+    - /emessage
+    - /whisper
+    - /ewhisper
+    - /w
+    - /ew
+    - /pm
+    - /epm
+    - /dm
+    - /edm
+    - /mail
+    - /email
+    - /local
+    - /l
+    - /shout
+    - /yell
+    - /me
+    - /action
+    - /say
+    - /team
+    - /tc
+    - /party
+    - /pc
+
+# Moderate text entered in signs, anvil renames and books.
+# These sources use the blacklist filters and the normal punishment pipeline.
+# On BungeeCord/Velocity, signs/anvils/books require PacketEvents installed on the proxy.
+text-moderation:
+  signs:
+    enabled: true
+  anvils:
+    enabled: true
+  books:
+    enabled: true
+  # Proxy only: enables packet listeners when PacketEvents is installed.
+  packet-events:
+    enabled: true
 
 # Replaces or blocks characters outside the allowed regex.
 # If this section is missing, general.filter-other: true enables this module with these defaults.

@@ -131,14 +131,40 @@ public class GeneralModule {
 	}
 
 	public boolean isCommand(String message) {
-		message = message.toLowerCase();
-
-		for (String command : commands) {
-			if (message.startsWith(command + ' '))
-				return true;
+		if (message == null || commands == null) {
+			return false;
 		}
-
+		final String root = commandRoot(message);
+		if (root.isEmpty()) {
+			return false;
+		}
+		for (String command : commands) {
+			final String configuredRoot = commandRoot(command);
+			if (!configuredRoot.isEmpty() && configuredRoot.equals(root)) {
+				return true;
+			}
+		}
 		return false;
+	}
+
+	private static String commandRoot(final String value) {
+		if (value == null) {
+			return "";
+		}
+		String normalized = value.trim().toLowerCase(Locale.ROOT);
+		if (!normalized.startsWith("/")) {
+			return "";
+		}
+		normalized = normalized.substring(1);
+		final int space = normalized.indexOf(' ');
+		if (space >= 0) {
+			normalized = normalized.substring(0, space);
+		}
+		final int colon = normalized.indexOf(':');
+		if (colon >= 0 && colon + 1 < normalized.length()) {
+			normalized = normalized.substring(colon + 1);
+		}
+		return normalized;
 	}
 
 	public boolean isFilterOther() {

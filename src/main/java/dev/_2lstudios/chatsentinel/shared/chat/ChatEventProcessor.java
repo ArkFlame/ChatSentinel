@@ -7,6 +7,7 @@ import dev._2lstudios.chatsentinel.shared.filter.FilterSource;
 import dev._2lstudios.chatsentinel.shared.moderation.ModerationIdentity;
 import dev._2lstudios.chatsentinel.shared.moderation.ModerationViolation;
 import dev._2lstudios.chatsentinel.shared.modules.AllowedCharactersModule;
+import dev._2lstudios.chatsentinel.shared.modules.BlacklistModerationModule;
 import dev._2lstudios.chatsentinel.shared.modules.CooldownModerationModule;
 import dev._2lstudios.chatsentinel.shared.modules.CorrectionModule;
 import dev._2lstudios.chatsentinel.shared.modules.CorrectionResult;
@@ -19,6 +20,7 @@ import dev._2lstudios.chatsentinel.shared.modules.NoMoveChatModule;
 import dev._2lstudios.chatsentinel.shared.modules.ServerMuteModule;
 import dev._2lstudios.chatsentinel.shared.modules.SpyModule;
 import dev._2lstudios.chatsentinel.shared.modules.SyntaxModerationModule;
+import dev._2lstudios.chatsentinel.shared.modules.WhitelistModule;
 import dev._2lstudios.chatsentinel.shared.platform.ChatPlatform;
 import dev._2lstudios.chatsentinel.shared.platform.ChatUser;
 import dev._2lstudios.chatsentinel.shared.utils.PlaceholderUtil;
@@ -135,6 +137,61 @@ public final class ChatEventProcessor {
             return ChatModerationDecision.pass(originalMessage);
         }
         return ChatModerationDecision.rewrite(finalMessage);
+    }
+
+    /**
+     * Moderates plain text that did not come from chat, such as sign lines, anvil renames and
+     * book pages. Only the blacklist module runs; a censorship rewrite is promoted to a block so
+     * the caller can cancel the event and show the cancellation message.
+     */
+    public ChatModerationDecision processText(final ChatUser user, final String text) {
+        return processText(user, text, true);
+    }
+
+    public ChatModerationDecision processText(final ChatUser user, final String text, final boolean enforce) {
+        final String safeText = text == null ? "" : text;
+        final ChatPlayer chatPlayer = chatPlayerManager.getPlayer(user);
+        final MessagesModule messagesModule = moduleManager.getMessagesModule();
+        final String playerName = user.getName();
+        final String lang = chatPlayer.getLocale();
+        final BlacklistModerationModule blacklistModule = moduleManager.getBlacklistModule();
+        final WhitelistModule whitelistModule = moduleManager.getWhitelistModule();
+
+        if (whitelistModule != null
+                && whitelistModule.getWhitelistedServers() != null
+                && whitelistModule.getWhitelistedServers().contains(user.getServerName())) {
+            return ChatModerationDecision.pass(safeText);
+        }
+        if (!blacklistModule.isEnabled()
+                || hasModuleBypass(user, blacklistModule.getIdentityKey(), blacklistModule.getBypassPermission())) {
+            return ChatModerationDecision.pass(safeText);
+        }
+
+        final ChatEventResult result = blacklistModule.processTextEvent(chatPlayer, messagesModule, playerName,
+                safeText, lang);
+        if (result == null) {
+            return ChatModerationDecision.pass(safeText);
+        }
+
+        final ViolationData data = resolveViolationData(blacklistModule, result);
+        if (enforce) {
+            handleViolation(user, chatPlayer, blacklistModule, safeText, result.getMessage(), result, data);
+        }
+
+        final ChatModerationAction action = result.getAction();
+        if (!action.isTerminal() && action != ChatModerationAction.REWRITE) {
+            return ChatModerationDecision.pass(result.getMessage());
+        }
+
+        final String reasonId = blacklistModule.getIdentityKey();
+        final String reasonName = blacklistModule.getCustomName() != null
+                ? blacklistModule.getCustomName()
+                : blacklistModule.getName();
+        final String feedback = resolvePreferredTerminalMessage(result, data, lang);
+        if (action == ChatModerationAction.SELF_ONLY) {
+            return ChatModerationDecision.selfOnly(safeText, feedback, reasonId, reasonName);
+        }
+        return ChatModerationDecision.block(safeText, feedback, reasonId, reasonName);
     }
 
     private Optional<ChatModerationDecision> processServerMute(final ChatUser user, final ChatPlayer chatPlayer,

@@ -28,6 +28,7 @@ import dev._2lstudios.chatsentinel.shared.filter.FilterCompileError;
 import dev._2lstudios.chatsentinel.shared.filter.FilterCompileReport;
 import dev._2lstudios.chatsentinel.shared.filter.FilterCompileStatus;
 import dev._2lstudios.chatsentinel.shared.modules.GeneralModule;
+import dev._2lstudios.chatsentinel.shared.packet.PacketEventsHook;
 import dev._2lstudios.chatsentinel.shared.platform.ChatUser;
 import dev._2lstudios.chatsentinel.shared.socialspy.SocialSpyService;
 import net.md_5.bungee.api.ProxyServer;
@@ -47,6 +48,7 @@ public class ChatSentinel extends Plugin {
     private BungeeMessageSink messageSink;
     private BungeeChatPlatform chatPlatform;
     private ChatEventProcessor chatEventProcessor;
+    private PacketEventsHook packetEventsHook;
     private ChatSentinelCommandService commandService;
     private SocialSpyService socialSpyService;
     private AlertBus alertBus = new LocalAlertBus();
@@ -81,6 +83,18 @@ public class ChatSentinel extends Plugin {
         chatPlatform = new BungeeChatPlatform(this, getProxy(), messageSink);
         socialSpyService = new SocialSpyService(moduleManager, chatPlayerManager, chatPlatform);
         chatEventProcessor = new ChatEventProcessor(moduleManager, chatPlayerManager, chatNotificationManager, chatPlatform, alertBus);
+        if (moduleManager.getTextModerationSettings().isPacketEventsEnabled()) {
+            if (getProxy().getPluginManager().getPlugin("packetevents") != null) {
+                try {
+                    packetEventsHook = new PacketEventsHook(moduleManager, chatEventProcessor, chatPlatform);
+                    getLogger().info("PacketEvents hook enabled: signs, anvil renames and books will be moderated on the proxy.");
+                } catch (Throwable throwable) {
+                    getLogger().warning("Unable to register PacketEvents hook: " + throwable.getMessage());
+                }
+            } else {
+                getLogger().info("PacketEvents is not installed; sign/anvil/book moderation on this proxy is disabled.");
+            }
+        }
         commandService = new ChatSentinelCommandService(moduleManager, chatPlayerManager, chatNotificationManager, chatPlatform,
                 new UserRegexAddService(new BungeeUserFilterWriter(getDataFolder())), new BungeeMutableModuleConfigStore(this, configUtil),
                 socialSpyService);
@@ -107,6 +121,9 @@ public class ChatSentinel extends Plugin {
 
     @Override
     public void onDisable() {
+        if (packetEventsHook != null) {
+            packetEventsHook.unregister();
+        }
         alertBus.close();
     }
 

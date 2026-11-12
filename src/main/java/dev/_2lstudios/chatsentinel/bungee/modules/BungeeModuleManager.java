@@ -133,6 +133,10 @@ public class BungeeModuleManager extends ModuleManager {
 				configYml.getStringList("general.commands"),
 				configYml.getString("general.global-bypass-permission", "chatsentinel.bypass"),
 				configYml.getStringList("general.global-bypass-excluded-modules"));
+		loadTextModeration(configYml.getBoolean("text-moderation.signs.enabled", true),
+				configYml.getBoolean("text-moderation.anvils.enabled", true),
+				configYml.getBoolean("text-moderation.books.enabled", true),
+				configYml.getBoolean("text-moderation.packet-events.enabled", true));
 		getAllowedCharactersModule().loadData(
 				configYml.contains("allowed-characters")
 						? configYml.getBoolean("allowed-characters.enabled", false)

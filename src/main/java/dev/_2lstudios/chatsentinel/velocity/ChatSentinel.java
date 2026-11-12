@@ -8,6 +8,7 @@ import com.velocitypowered.api.event.EventManager;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent;
+import com.velocitypowered.api.plugin.Dependency;
 import com.velocitypowered.api.plugin.Plugin;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
@@ -25,6 +26,7 @@ import dev._2lstudios.chatsentinel.shared.filter.FilterCompileError;
 import dev._2lstudios.chatsentinel.shared.filter.FilterCompileReport;
 import dev._2lstudios.chatsentinel.shared.filter.FilterCompileStatus;
 import dev._2lstudios.chatsentinel.shared.modules.GeneralModule;
+import dev._2lstudios.chatsentinel.shared.packet.PacketEventsHook;
 import dev._2lstudios.chatsentinel.shared.platform.ChatUser;
 import dev._2lstudios.chatsentinel.velocity.commands.ChatSentinelCommand;
 import dev._2lstudios.chatsentinel.velocity.config.VelocityMutableModuleConfigStore;
@@ -48,7 +50,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 @Plugin(id = Constants.ID, name = Constants.NAME, version = Constants.VERSION, description = Constants.DESCRIPTION,
-        url = Constants.URL, authors = Constants.AUTHOR)
+        url = Constants.URL, authors = Constants.AUTHOR,
+        dependencies = { @Dependency(id = "packetevents", optional = true) })
 public class ChatSentinel {
     private final ProxyServer server;
     private final ComponentLogger logger;
@@ -60,6 +63,7 @@ public class ChatSentinel {
     private VelocityMessageSink messageSink;
     private VelocityChatPlatform chatPlatform;
     private ChatEventProcessor chatEventProcessor;
+    private PacketEventsHook packetEventsHook;
     private ChatSentinelCommandService commandService;
     private SocialSpyService socialSpyService;
     private AlertBus alertBus = new LocalAlertBus();
@@ -87,6 +91,18 @@ public class ChatSentinel {
         chatPlatform = new VelocityChatPlatform(this, server, messageSink);
         socialSpyService = new SocialSpyService(moduleManager, chatPlayerManager, chatPlatform);
         chatEventProcessor = new ChatEventProcessor(moduleManager, chatPlayerManager, chatNotificationManager, chatPlatform, alertBus);
+        if (moduleManager.getTextModerationSettings().isPacketEventsEnabled()) {
+            if (server.getPluginManager().getPlugin("packetevents").isPresent()) {
+                try {
+                    packetEventsHook = new PacketEventsHook(moduleManager, chatEventProcessor, chatPlatform);
+                    logger.info("PacketEvents hook enabled: signs, anvil renames and books will be moderated on the proxy.");
+                } catch (Throwable throwable) {
+                    logger.warn("Unable to register PacketEvents hook: " + throwable.getMessage());
+                }
+            } else {
+                logger.info("PacketEvents is not installed; sign/anvil/book moderation on this proxy is disabled.");
+            }
+        }
         commandService = new ChatSentinelCommandService(moduleManager, chatPlayerManager, chatNotificationManager, chatPlatform,
                 new UserRegexAddService(new VelocityUserFilterWriter(dataDirectory)), new VelocityMutableModuleConfigStore(this),
                 socialSpyService);
@@ -117,6 +133,9 @@ public class ChatSentinel {
 
     @Subscribe
     public void onProxyShutdown(final ProxyShutdownEvent event) {
+        if (packetEventsHook != null) {
+            packetEventsHook.unregister();
+        }
         alertBus.close();
     }
 

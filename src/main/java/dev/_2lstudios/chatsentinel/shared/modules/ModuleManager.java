@@ -26,6 +26,7 @@ public abstract class ModuleManager {
 	private boolean filterCompileNotifyAdmins = true;
 	private String filterCompileNotifyPermission = "chatsentinel.admin";
 	private WarningDeliverySettings warningDeliverySettings = new WarningDeliverySettings(true, true);
+	private TextModerationSettings textModerationSettings = new TextModerationSettings(true, true, true, true);
 
 	public ModuleManager() {
 		this.capitalizationModule = new CapitalizationModule();
@@ -137,6 +138,10 @@ public abstract class ModuleManager {
 		return warningDeliverySettings;
 	}
 
+	public TextModerationSettings getTextModerationSettings() {
+		return textModerationSettings;
+	}
+
 	protected void setLastCompileReport(FilterCompileReport lastCompileReport) {
 		this.lastCompileReport = lastCompileReport;
 	}
@@ -150,5 +155,9 @@ public abstract class ModuleManager {
 
 	protected void loadWarningDelivery(boolean messageEnabled, boolean actionBarEnabled) {
 		this.warningDeliverySettings = new WarningDeliverySettings(messageEnabled, actionBarEnabled);
+	}
+
+	protected void loadTextModeration(boolean signs, boolean anvils, boolean books, boolean packetEvents) {
+		this.textModerationSettings = new TextModerationSettings(signs, anvils, books, packetEvents);
 	}
 }

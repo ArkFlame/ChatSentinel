@@ -13,6 +13,7 @@ import dev._2lstudios.chatsentinel.bukkit.listeners.SocialSpyBookListener;
 import dev._2lstudios.chatsentinel.bukkit.listeners.SocialSpyAnvilListener;
 import dev._2lstudios.chatsentinel.bukkit.gui.SocialSpyMenu;
 import dev._2lstudios.chatsentinel.bukkit.listeners.SocialSpySignListener;
+import dev._2lstudios.chatsentinel.bukkit.listeners.TextModerationListener;
 import dev._2lstudios.chatsentinel.bukkit.modules.BukkitModuleManager;
 import dev._2lstudios.chatsentinel.bukkit.platform.BukkitChatPlatform;
 import dev._2lstudios.chatsentinel.bukkit.text.BukkitMessageSink;
@@ -96,6 +97,7 @@ public class ChatSentinel extends JavaPlugin {
         pluginManager.registerEvents(new SocialSpySignListener(socialSpyService), this);
         pluginManager.registerEvents(new SocialSpyBookListener(socialSpyService), this);
         pluginManager.registerEvents(new SocialSpyAnvilListener(socialSpyService), this);
+        pluginManager.registerEvents(new TextModerationListener(this), this);
         pluginManager.registerEvents(new ServerCommandListener(chatPlayerManager, chatNotificationManager, socialSpyService), this);
 
         final ChatSentinelCommand command = new ChatSentinelCommand(this);

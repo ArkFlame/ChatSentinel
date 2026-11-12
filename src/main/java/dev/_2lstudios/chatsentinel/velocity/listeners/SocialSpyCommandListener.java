@@ -5,6 +5,9 @@ import com.velocitypowered.api.event.PostOrder;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.command.CommandExecuteEvent;
 import com.velocitypowered.api.proxy.Player;
+import dev._2lstudios.chatsentinel.shared.chat.ChatModerationApplication;
+import dev._2lstudios.chatsentinel.shared.chat.ChatModerationDecision;
+import dev._2lstudios.chatsentinel.shared.modules.GeneralModule;
 import dev._2lstudios.chatsentinel.shared.socialspy.SocialSpyService;
 import dev._2lstudios.chatsentinel.velocity.ChatSentinel;
 import dev._2lstudios.chatsentinel.velocity.platform.VelocityChatUser;
@@ -25,6 +28,35 @@ public final class SocialSpyCommandListener {
             return;
         }
         final Player player = (Player) source;
-        socialSpyService.publishCommand(new VelocityChatUser(player, plugin.getMessageSink()), event.getCommand());
+        final VelocityChatUser chatUser = new VelocityChatUser(player, plugin.getMessageSink());
+        final String command = event.getCommand();
+        final String message = command.startsWith("/") ? command : "/" + command;
+        final GeneralModule generalModule = plugin.getModuleManager().getGeneralModule();
+
+        if (generalModule.isCommand(message)) {
+            final ChatModerationDecision decision = plugin.getChatEventProcessor().process(chatUser, message, true);
+            if (decision.getAction().isTerminal()) {
+                event.setResult(CommandExecuteEvent.CommandResult.denied());
+                final ChatModerationApplication application = ChatModerationApplication.forCommand(decision);
+                for (String feedback : application.getSenderMessages()) {
+                    chatUser.sendMessage(feedback);
+                }
+                return;
+            }
+            if (decision.getAction().rewritesMessage()) {
+                final String rewritten = withoutSlash(decision.getMessage());
+                event.setResult(CommandExecuteEvent.CommandResult.command(rewritten));
+                socialSpyService.publishCommand(chatUser, rewritten);
+                return;
+            }
+        }
+        socialSpyService.publishCommand(chatUser, command);
+    }
+
+    private String withoutSlash(final String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.startsWith("/") ? value.substring(1) : value;
     }
 }

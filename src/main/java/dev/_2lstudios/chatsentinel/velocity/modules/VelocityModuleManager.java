@@ -128,6 +128,10 @@ public class VelocityModuleManager extends ModuleManager {
 				configYml.node("general", "global-bypass-excluded-modules").childrenList().stream()
 						.map(ConfigurationNode::getString)
 						.collect(Collectors.toList()));
+		loadTextModeration(configYml.node("text-moderation", "signs", "enabled").getBoolean(true),
+				configYml.node("text-moderation", "anvils", "enabled").getBoolean(true),
+				configYml.node("text-moderation", "books", "enabled").getBoolean(true),
+				configYml.node("text-moderation", "packet-events", "enabled").getBoolean(true));
 		boolean hasAllowedCharactersConfig = !configYml.node("allowed-characters").virtual();
 		getAllowedCharactersModule().loadData(
 				hasAllowedCharactersConfig

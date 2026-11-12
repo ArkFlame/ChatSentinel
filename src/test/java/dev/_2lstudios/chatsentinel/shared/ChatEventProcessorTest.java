@@ -592,6 +592,81 @@ public class ChatEventProcessorTest {
         return builder.toString();
     }
 
+    @Test
+    public void processText_blocksBlacklistedSignText_andDispatchesPunishment() {
+        TestModuleManager modules = modules();
+        modules.getMessagesModule().loadData("en", textLocales());
+        modules.getBlacklistModule().loadData(true, "Blacklist", false, false, "", 1, "", false,
+                new String[] { "kick %player%" }, new String[] { "bad" }, true);
+        FakeUser user = new FakeUser(UUID.randomUUID(), "Steve");
+        FakePlatform platform = new FakePlatform("Bukkit", Collections.singletonList(user));
+        ChatEventProcessor processor = processor(modules, platform, new ChatPlayerManager());
+
+        ChatModerationDecision result = processor.processText(user, "bad sign", true);
+
+        assertTrue(result.getAction().isTerminal());
+        assertEquals(Collections.singletonList("kick Steve"), platform.getCommands());
+    }
+
+    @Test
+    public void processText_doesNotStripCommandArguments() {
+        TestModuleManager modules = modules();
+        modules.getMessagesModule().loadData("en", textLocales());
+        modules.getBlacklistModule().loadData(true, "Blacklist", false, false, "", 0, "", false,
+                new String[0], new String[] { "bad" }, true);
+        FakeUser user = new FakeUser(UUID.randomUUID(), "Steve");
+        ChatEventProcessor processor = processor(modules, new FakePlatform("Bukkit", Collections.singletonList(user)),
+                new ChatPlayerManager());
+
+        ChatModerationDecision result = processor.processText(user, "/bad hello", true);
+
+        assertTrue(result.getAction().isTerminal());
+    }
+
+    @Test
+    public void processText_promotesCensorshipToBlock() {
+        TestModuleManager modules = modules();
+        modules.getMessagesModule().loadData("en", textLocales());
+        modules.getBlacklistModule().loadData(true, "Blacklist", false, true, "***", 0, "", false,
+                new String[0], new String[] { "bad" }, false);
+        FakeUser user = new FakeUser(UUID.randomUUID(), "Steve");
+        ChatEventProcessor processor = processor(modules, new FakePlatform("Bukkit", Collections.singletonList(user)),
+                new ChatPlayerManager());
+
+        ChatModerationDecision result = processor.processText(user, "bad sign", true);
+
+        assertEquals(ChatModerationAction.BLOCK, result.getAction());
+    }
+
+    @Test
+    public void processText_withoutEnforcement_doesNotPunish() {
+        TestModuleManager modules = modules();
+        modules.getMessagesModule().loadData("en", textLocales());
+        modules.getBlacklistModule().loadData(true, "Blacklist", false, false, "", 1, "", false,
+                new String[] { "kick %player%" }, new String[] { "bad" }, true);
+        FakeUser user = new FakeUser(UUID.randomUUID(), "Steve");
+        FakePlatform platform = new FakePlatform("Bukkit", Collections.singletonList(user));
+        ChatPlayerManager players = new ChatPlayerManager();
+        ChatEventProcessor processor = processor(modules, platform, players);
+
+        ChatModerationDecision result = processor.processText(user, "bad sign", false);
+
+        assertTrue(result.getAction().isTerminal());
+        assertTrue(platform.getCommands().isEmpty());
+        assertEquals(0, players.getPlayer(user).getWarns("default"));
+    }
+
+    private static Map<String, Map<String, String>> textLocales() {
+        Map<String, Map<String, String>> locales = new HashMap<String, Map<String, String>>();
+        Map<String, String> en = new HashMap<String, String>();
+        en.put("blocked_message", "blocked %word%");
+        en.put("blacklist_warn_message", "blocked %word%");
+        en.put("filtered", "filtered");
+        en.put("cancellation_fallback", "fallback");
+        locales.put("en", en);
+        return locales;
+    }
+
     private static TestModuleManager modules() {
         TestModuleManager manager = new TestModuleManager();
         Map<String, Map<String, String>> locales = new HashMap<String, Map<String, String>>();

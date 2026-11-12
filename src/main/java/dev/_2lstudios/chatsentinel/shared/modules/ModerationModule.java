@@ -69,6 +69,12 @@ public abstract class ModerationModule {
 
 	public abstract ChatEventResult processEvent(ChatPlayer chatPlayer, MessagesModule messagesModule, String playerName, String originalMessage, String lang);
 
+	/** Entry point for text sources that are not chat messages (signs, anvils, books). */
+	public ChatEventResult processTextEvent(ChatPlayer chatPlayer, MessagesModule messagesModule, String playerName,
+			String text, String lang) {
+		return processEvent(chatPlayer, messagesModule, playerName, text, lang);
+	}
+
 	public String getBypassPermission() {
 		return "chatsentinel.bypass." + getName();
 	}

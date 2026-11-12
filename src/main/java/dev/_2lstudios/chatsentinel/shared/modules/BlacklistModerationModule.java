@@ -94,6 +94,17 @@ public class BlacklistModerationModule extends ModerationModule {
 	@Override
 	public ChatEventResult processEvent(ChatPlayer chatPlayer, MessagesModule messagesModule, String playerName,
 			String message, String lang) {
+		return processEvent(chatPlayer, messagesModule, playerName, message, lang, true);
+	}
+
+	@Override
+	public ChatEventResult processTextEvent(ChatPlayer chatPlayer, MessagesModule messagesModule, String playerName,
+			String text, String lang) {
+		return processEvent(chatPlayer, messagesModule, playerName, text, lang, false);
+	}
+
+	private ChatEventResult processEvent(ChatPlayer chatPlayer, MessagesModule messagesModule, String playerName,
+			String message, String lang, boolean commandAware) {
 		if (!isEnabled()) {
 			return null;
 		}
@@ -104,7 +115,7 @@ public class BlacklistModerationModule extends ModerationModule {
 		String sanitizedMessage = message;
 
 		// Filter the arguments of the commands
-		if (sanitizedMessage.startsWith("/") && message.contains(" ")) {
+		if (commandAware && sanitizedMessage.startsWith("/") && message.contains(" ")) {
 			sanitizedMessage = sanitizedMessage.substring(message.indexOf(" "));
 		}
 
